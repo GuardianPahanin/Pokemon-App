@@ -173,7 +173,7 @@ grid.addEventListener("click", e=>{ const b = e.target.closest("button"); if(!b)
 const tn = document.getElementById("tabName"), tt = document.getElementById("tabType");
 tn.onclick = ()=>{ tn.classList.add("on"); tt.classList.remove("on"); nameMode.hidden=false; typeMode.hidden=true; document.getElementById("out").innerHTML=""; };
 tt.onclick = ()=>{ tt.classList.add("on"); tn.classList.remove("on"); nameMode.hidden=true; typeMode.hidden=false; document.getElementById("out").innerHTML=""; if(sel.length) render("", sel); };
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}).catch(()=>{});
 </script>
 </body>
 </html>
