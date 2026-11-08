@@ -59,7 +59,7 @@ for(const i of usedItems){ const ms=Items[i].megaStone; if(ms) for(const[b,m] of
 const moveList=[...usedMoves].sort(); const midx=Object.fromEntries(moveList.map((m,i)=>[m,i]));
 const CAT={Physical:'P',Special:'S',Status:'X'};
 const out={
-  moves: moveList.map(k=>{const m=Moves[k]; const co=CMoves[k]||{}; return [m.name,m.type,CAT[m.category],m.basePower||0,m.accuracy===true?0:m.accuracy,m.priority||0,['allAdjacentFoes','allAdjacent'].includes(m.target)?1:0,((TM[k]&&(TM[k].shortDesc||TM[k].desc))||'').slice(0,140), co.basePower||0, (m.flags&&(m.flags.charge||m.flags.recharge))||m.selfdestruct||['focuspunch','dreameater','steelroller','lastresort','belch','synchronoise','futuresight','doomdesire','skyattack','razorwind','meteorbeam','electroshot','solarbeam','solarblade','finalgambit','memento','explosion','selfdestruct','mistyexplosion','healingwish','lunardance'].includes(k)?1:0];}),
+  moves: moveList.map(k=>{const m=Moves[k]; const co=CMoves[k]||{}; return [m.name,m.type,CAT[m.category],m.basePower||0,m.accuracy===true?0:m.accuracy,m.priority||0,m.target==='allAdjacentFoes'?1:m.target==='allAdjacent'?2:0,((TM[k]&&(TM[k].shortDesc||TM[k].desc))||'').slice(0,140), co.basePower||0, (m.flags&&(m.flags.charge||m.flags.recharge))||m.selfdestruct||['focuspunch','dreameater','steelroller','lastresort','belch','synchronoise','futuresight','doomdesire','skyattack','razorwind','meteorbeam','electroshot','solarbeam','solarblade','finalgambit','memento','explosion','selfdestruct','mistyexplosion','healingwish','lunardance'].includes(k)?1:0];}),
   items: Object.fromEntries([...usedItems].map(k=>[k,{n:Items[k].name,d:((TI[k]&&(TI[k].shortDesc||TI[k].desc))||'').slice(0,140),...(megaOf[k]?{m:megaOf[k]}:{})}])),
   species: {}, abilities:{}, formats:{}
 };

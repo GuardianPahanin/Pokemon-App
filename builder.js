@@ -3,7 +3,23 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toID = s => String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
-let G = null, M = null; // game data, meta data
+let G = null, M = null; // active game data, meta data
+const DS = {}; // dataset key -> game data
+const dsKey = t => (t.format==="champ"||t.format==="svi") ? "main" : t.format;
+const isEra = t => /^g\d$/.test(t.format);
+const genOf = t => isEra(t) ? +t.format.slice(1) : 9;
+const DEXMAX = {1:151,2:251,3:386,4:493,5:649,6:721,7:809,8:905,9:1025};
+const dexLbl = g => g===1 ? "Gen 1 only" : `Gen 1–${g}`;
+const EMPTY_META = {usage:[], sets:{}, teams:[]};
+let curGen = 9;
+function use(t){ const k = dsKey(t); if (G !== DS[k]){ G = DS[k]; for (const x in moveIdx) delete moveIdx[x]; G.moves.forEach((x,i) => moveIdx[toID(x[0])] = i); } curGen = genOf(t); }
+const TY = () => curGen >= 6 ? TYPES : TYPES.filter(x => x !== "Fairy");
+function ef(a, d){ if (curGen <= 5 && d === "Steel" && (a === "Ghost" || a === "Dark")) return 0.5; return eff(a, d); }
+const fmtLabel = t => (t.format==="champ" ? "Champions M-C" : t.format==="svi" ? "SV Reg I" : `Gen ${genOf(t)} rules`) + (t.dex && !isEra(t) ? ` · ${dexLbl(t.dex)} dex` : "");
+function ensureData(t){
+  const k = dsKey(t); if (DS[k]) return Promise.resolve();
+  return fetch(k==="main" ? "data/game.json" : `data/gen${k.slice(1)}.json`).then(r => r.json()).then(g => { DS[k] = g; });
+}
 const STORE = "doubles-teams-v1";
 let teams = [], curTeam = null, curSlot = -1;
 const root = () => $("#teamMode");
@@ -18,8 +34,8 @@ const S = id => G.species[id];
 const mv = i => { const m = G.moves[i]; return {i, n:m[0], t:m[1], c:m[2], bp:m[3], acc:m[4], pri:m[5], spread:m[6], d:m[7], bad:m[9]}; };
 const moveIdx = {}; // name id -> index
 const fmt = t => G.formats[t.format];
-const meta = t => M[t.format];
-const sprite = id => `sprites/${S(id).sp}.png`;
+const meta = t => (M && M[t.format]) || EMPTY_META;
+const sprite = id => `sprites/${(G.species[id]||{}).sp||0}.png`;
 function effSpecies(mon){ // mega form if holding its stone
   const it = mon.item && G.items[mon.item];
   if (it && it.m && it.m[mon.s]) return it.m[mon.s];
@@ -30,7 +46,8 @@ const setOf = (t, id) => meta(t).sets[id];
 const usageOf = (t, id) => { const u = meta(t).usage.find(x => x[0]===id); return u ? u[1] : 0; };
 const tmPct = (t, a, b) => { const s = setOf(t, a); if(!s) return 0; const x = s.tm.find(y => y[0]===b); return x ? x[1] : 0; };
 const learnable = (t, id) => fmt(t).learn[id] || [];
-const legalSpecies = t => Object.keys(fmt(t).learn);
+const inDex = (t, id) => !t.dex || isEra(t) || S(id).nm <= DEXMAX[t.dex];
+const legalSpecies = t => Object.keys(fmt(t).learn).filter(id => inDex(t, id));
 const itemLegal = (t, id) => fmt(t).items.includes(id);
 function megaStoneFor(t, sid){ return fmt(t).items.filter(i => G.items[i].m && G.items[i].m[sid]); }
 
@@ -54,7 +71,7 @@ function suggestSet(t, sid, ctx){
     moves = set.m.filter(x => L.includes(x[0])).slice(0,4).map(x => x[0]);
   }
   if (moves.length < 4) for (const r of heuristicMoves(t, sid)) { if (moves.length>=4) break; if (!moves.includes(r.i)) moves.push(r.i); }
-  if (!item){ const st = megaStoneFor(t, sid).filter(okItem); item = st[0] || COMMON_ITEMS.find(okItem) || ""; }
+  if (!item){ const st = megaStoneFor(t, sid).filter(okItem); item = st[0] || itemIdeas(t, sid, moves).find(x => okItem(x.k))?.k || ""; }
   return {ability, item, moves};
 }
 function heuristicMoves(t, sid){ // for any Pokémon: strongest STAB, coverage, Protect, doubles staples
@@ -65,7 +82,9 @@ function heuristicMoves(t, sid){ // for any Pokémon: strongest STAB, coverage, 
     let s = m.bp * (m.acc ? m.acc/100 : 1);
     if (sp.t.includes(m.t)) s *= 1.5;
     if ((m.c === "P") !== physical) s *= 0.6;
-    if (m.spread) s *= 1.15;
+    if (m.spread === 1) s *= 1.2; else if (m.spread === 2) s *= 0.7; // hits your partner too
+    if (/recoil/i.test(m.d)) s *= 0.9;
+    if (m.t === "Normal" && !sp.t.includes("Normal")) s *= 0.75;
     if (m.bad) return -1;
     return s;
   };
@@ -80,6 +99,22 @@ function heuristicMoves(t, sid){ // for any Pokémon: strongest STAB, coverage, 
 }
 const GOOD_ABIL = ["Intimidate","Drizzle","Drought","Sand Stream","Snow Warning","Orichalcum Pulse","Hadron Engine","Psychic Surge","Grassy Surge","Electric Surge","Misty Surge","Armor Tail","Good as Gold","Unseen Fist","Prankster","Friend Guard","Regenerator","Inner Focus","Sword of Ruin","Beads of Ruin","Vessel of Ruin","Tablets of Ruin","Protosynthesis","Quark Drive","Commander","Unaware","Supersweet Syrup","Tera Shift","Toxic Chain","Poison Puppeteer","Hospitality","Embody Aspect (Cornerstone)","Embody Aspect (Hearthflame)","Embody Aspect (Wellspring)","Mind's Eye","Sharpness","Opportunist","Defiant","Competitive","Mold Breaker","Adaptability","Moody","As One (Glastrier)","As One (Spectrier)","Stamina","Rough Skin","Swift Swim","Chlorophyll","Sand Rush","Slush Rush","Levitate","Multiscale","Lightning Rod","Storm Drain","Water Absorb","Sap Sipper","Flash Fire"];
 const COMMON_ITEMS = ["sitrusberry","focussash","lifeorb","leftovers","choicescarf","choicespecs","choiceband","assaultvest","rockyhelmet","safetygoggles","covertcloak","clearamulet","boosterenergy","mysticwater","whiteherb","mentalherb","lumberry","ejectbutton"];
+function itemIdeas(t, sid, moves){ // ordered item ideas with reasons, for any Pokémon/format
+  const sp = S(sid), ms = (moves||[]).map(mv), atk = ms.filter(m => m.c !== "X"), status = ms.length - atk.length;
+  const physical = sp.s[1] >= sp.s[3], fast = sp.s[5] >= 95, bulky = sp.s[0] + sp.s[2] + sp.s[4] >= 300;
+  const types = {}; atk.forEach(m => types[m.t] = (types[m.t]||0) + (sp.t.includes(m.t) ? 2 : 1));
+  const mainType = Object.entries(types).sort((a,b)=>b[1]-a[1])[0]?.[0] || sp.t[0];
+  const boost = Object.keys(G.items).find(k => new RegExp(`^Holder's ${mainType}-type attacks have 1\\.2x`).test(G.items[k].d) && !/Plate/.test(G.items[k].n));
+  const out = [], add = (k, why) => { if (G.items[k] && itemLegal(t, k) && !out.find(o=>o.k===k)) out.push({k, why}); };
+  if (bulky || status >= 2) { add("sitrusberry","Bulky / support"); add("leftovers","Bulky / support"); }
+  if (atk.length >= 3) { add("lifeorb","Attacker"); if (boost) add(boost, `Boosts ${mainType} moves`); if (!ms.some(m => STAPLE[toID(m.n)]==="Protect")) add(physical ? "choiceband" : "choicespecs","All-out attacker"); }
+  if (!bulky) add("focussash","Frail — survive one hit");
+  if (fast && atk.length >= 3) add("choicescarf","Outspeed threats");
+  add("sitrusberry","Safe default"); add("lumberry","Status protection"); add("safetygoggles","Blocks spore/powder & weather");
+  add("covertcloak","Blocks flinch & side effects"); add("assaultvest","Special bulk"); add("rockyhelmet","Punish contact");
+  if (boost) add(boost, `Boosts ${mainType} moves`); add("whiteherb","Resets stat drops"); add("mentalherb","Blocks Taunt/Encore"); add("shellbell","Recover HP when attacking"); add("leftovers","Passive recovery");
+  return out;
+}
 function teamFeatures(t){
   const mons = t.mons.filter(Boolean), f = {fake:0, speed:0, redirect:0, intim:0, protect:0, spread:0, trick:0, tail:0};
   for (const m of mons){
@@ -97,9 +132,9 @@ function teamFeatures(t){
 }
 function defenseTable(t){
   const mons = t.mons.filter(Boolean);
-  return TYPES.map(a => {
+  return TY().map(a => {
     let weak=0, res=0, imm=0;
-    for (const m of mons){ const x = typesOf(m).reduce((p,d)=>p*eff(a,d),1); if (x===0) imm++; else if (x>1) weak++; else if (x<1) res++; }
+    for (const m of mons){ const x = typesOf(m).reduce((p,d)=>p*ef(a,d),1); if (x===0) imm++; else if (x>1) weak++; else if (x<1) res++; }
     return {type:a, weak, res, imm};
   });
 }
@@ -107,29 +142,33 @@ function partnerSuggestions(t, limit=10){
   const mons = t.mons.filter(Boolean); const have = new Set(mons.map(m => S(m.s).nm));
   const restrictedCount = mons.filter(m => S(m.s).r).length;
   const def = defenseTable(t), feats = teamFeatures(t);
-  const pool = new Set(meta(t).usage.map(u=>u[0]));
-  for (const m of mons){ const s = setOf(t, m.s); if (s) s.tm.forEach(x => pool.add(x[0])); }
+  const pool = new Set(meta(t).usage.map(u=>u[0]).filter(id => inDex(t,id)));
+  for (const m of mons){ const s = setOf(t, m.s); if (s) s.tm.forEach(x => inDex(t,x[0]) && pool.add(x[0])); }
+  const metaPool = pool.size >= 12;
+  if (!metaPool) legalSpecies(t).forEach(id => { if (!S(id).nfe) pool.add(id); });
   const out = [];
   for (const c of pool){
-    if (!fmt(t).learn[c] || have.has(S(c).nm)) continue;
+    if (!fmt(t).learn[c] || have.has(S(c).nm) || !inDex(t,c)) continue;
     if (S(c).r && restrictedCount >= fmt(t).maxRestricted) continue;
     let score = 0; const why = [];
     let pair = 0, best = null;
     for (const m of mons){ const p = (tmPct(t, m.s, c) + tmPct(t, c, m.s)) / (tmPct(t,m.s,c)&&tmPct(t,c,m.s)?2:1); if (p > pair){ pair = p; best = m.s; } score += p; }
     if (best && pair >= 10) why.push(`Paired with ${S(best).n} on ${Math.round(pair)}% of teams`);
     const u = usageOf(t, c); score += u * 0.6; if (!mons.length && u) why.push(`${u.toFixed(1)}% usage`);
+    if (S(c).a.every(a => ["Truant","Slow Start","Defeatist","Klutz","Stall"].includes(a))){ score -= 40; }
+    if (!u){ const bst = S(c).s.reduce((a,b)=>a+b,0); score += (bst - 420) / 6; if (!mons.length || (bst >= 580 && !why.length)) why.push(`Base stat total ${bst}`); if (S(c).r && isEra(t)){ score -= 25; why.push("Legendary — often banned in-game"); } }
     const set = setOf(t, c); const cm = set ? set.m.filter(x=>x[1]>=15).map(x=>toID(G.moves[x[0]][0])) : heuristicMoves(t,c).map(m=>toID(m.n));
     const ct = S(effSpecies({s:c, item: suggestSet(t,c,teamCtx(t)).item})).t;
     let cover = [];
     if (mons.length) for (const d of def){
-      if (d.weak - d.res - d.imm >= 2){ const x = ct.reduce((p,k)=>p*eff(d.type,k),1); if (x<1){ score += 7; cover.push(d.type); } else if (x>1) score -= 6; }
+      if (d.weak - d.res - d.imm >= 2){ const x = ct.reduce((p,k)=>p*ef(d.type,k),1); if (x<1){ score += 7; cover.push(d.type); } else if (x>1) score -= 6; }
     }
     if (cover.length) why.push(`Covers your ${cover.join("/")} weakness`);
     if (mons.length){
       if (!feats.fake && cm.includes("fakeout")){ score += 8; why.push("Adds Fake Out"); }
       if (!feats.speed && cm.some(x => STAPLE[x]==="Speed control")){ score += 8; why.push("Adds speed control"); }
       if (!feats.redirect && cm.some(x => STAPLE[x]==="Redirection")){ score += 5; why.push("Adds redirection"); }
-      if (!feats.intim && set && set.a[0] && set.a[0][0]==="Intimidate"){ score += 6; why.push("Adds Intimidate"); }
+      if (!feats.intim && ((set && set.a[0] && set.a[0][0]==="Intimidate") || (!set && S(c).a.includes("Intimidate")))){ score += 6; why.push("Adds Intimidate"); }
     }
     out.push({id:c, score, why});
   }
@@ -140,7 +179,7 @@ function sampleTeams(t){
   return meta(t).teams.map(tm => ({tm, overlap: tm.filter(x=>mine.has(x.s)).length}))
     .filter(x => !mine.size || x.overlap>0).sort((a,b)=>b.overlap-a.overlap).slice(0,8);
 }
-function makeMon(t, sid, item, slot){ const ctx = teamCtx(t, slot); const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || (ctx.mega && G.items[item].m))) item = ""; return {s:sid, ability:s.ability, item: item || s.item, moves:s.moves}; }
+function makeMon(t, sid, item, slot){ const ctx = teamCtx(t, slot); const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || (ctx.mega && G.items[item].m))) item = ""; return {s:sid, sp:S(sid).sp, ability:s.ability, item: item || s.item, moves:s.moves}; }
 function addToTeam(t, sid, item){ const i = t.mons.findIndex(x=>!x); if (i<0) return false; t.mons[i] = makeMon(t, sid, item); save(); return true; }
 function autoFill(t){ while (t.mons.some(x=>!x)){ const p = partnerSuggestions(t,1)[0]; if (!p) break; addToTeam(t, p.id); } }
 
@@ -171,42 +210,53 @@ function importText(t, txt){
 
 /* ---------- views ---------- */
 function typeBadges(types){ return types.map(badge).join(""); }
-function render(){ if (!G){ root().innerHTML = `<div class="card">Loading team data…</div>`; return; } curTeam ? renderTeam() : renderList(); }
+function render(){ if (!DS.main || !M){ root().innerHTML = `<div class="card">Loading team data…</div>`; return; } if (curTeam && !DS[dsKey(curTeam)]) { openTeam(curTeam); return; } curTeam ? renderTeam() : renderList(); }
 
 function renderList(){
   let h = `<div class="tb-head"><h2>My doubles teams</h2></div>
   <div class="tb-row"><button class="btn primary" id="tbNew">+ New team</button><button class="btn" id="tbImport">Import paste</button></div>`;
   if (!teams.length) h += `<div class="card hint">No teams yet. Tap <b>New team</b>, pick a Pokémon or two, and the coach will suggest partners, moves and items from the current meta.</div>`;
   for (const t of teams){
-    h += `<button class="card tb-teamcard" data-open="${t.id}"><div class="tb-tc-top"><b>${esc(t.name)}</b><span class="fmt ${t.format}">${t.format==="champ"?"Champions M-C":"SV Reg I"}</span></div>
-      <div class="tb-minis">${t.mons.map(m => m ? `<img src="${sprite(m.s)}" alt="">` : `<span class="tb-empty-mini"></span>`).join("")}</div></button>`;
+    h += `<button class="card tb-teamcard" data-open="${t.id}"><div class="tb-tc-top"><b>${esc(t.name)}</b><span class="fmt ${t.format}">${esc(fmtLabel(t))}</span></div>
+      <div class="tb-minis">${t.mons.map(m => m ? `<img src="sprites/${m.sp || ((DS.main&&DS.main.species[m.s]||{}).sp) || 0}.png" alt="">` : `<span class="tb-empty-mini"></span>`).join("")}</div></button>`;
   }
-  h += `<div class="hint" style="margin-top:16px">Teams are saved on this device. Meta suggestions come from a Pikalytics snapshot (Showdown ladder + tournament teams, ${esc(M.champ.date)}). Legal Pokémon, moves and items come from Pokémon Showdown.</div>`;
+  h += `<div class="hint" style="margin-top:16px">Teams are saved on this device. Meta suggestions come from a Pikalytics snapshot (Showdown ladder + tournament teams, ${esc(M.champ.date)}). Older-generation teams have no meta data, so their coach uses stats, typing and doubles roles. Legal Pokémon, moves and items come from Pokémon Showdown.</div>`;
   root().innerHTML = h;
-  $("#tbNew").onclick = () => sheet(`<h3>New team</h3><p class="hint">Which format?</p>
+  $("#tbNew").onclick = () => sheet(`<h3>New team</h3>
+    <label>Today's rules (with meta coach)</label>
     <button class="btn primary block" data-fmt="champ">VGC 2026 Reg M-C<br><small>Pokémon Champions · current</small></button>
-    <button class="btn block" data-fmt="svi">VGC 2025 Reg I<br><small>Scarlet/Violet · 2 restricted</small></button>`, el => {
-      el.querySelectorAll("[data-fmt]").forEach(b => b.onclick = () => { const t = {id:uid(), name:`Team ${teams.length+1}`, format:b.dataset.fmt, mons:[null,null,null,null,null,null]}; teams.unshift(t); save(); closeSheet(); curTeam = t; render(); });
+    <button class="btn block" data-fmt="svi">VGC 2025 Reg I<br><small>Scarlet/Violet · 2 restricted</small></button>
+    <label>Limit to Pokémon from…</label>
+    <div class="tb-chips" id="dexChips"><button class="chip on" data-dex="0">All gens</button>${[1,2,3,4,5,6,7,8].map(g=>`<button class="chip" data-dex="${g}">${dexLbl(g)}</button>`).join("")}</div>
+    <label>Classic generation (that game's rules)</label>
+    <div class="hint">That generation's Pokédex, learnsets, items, abilities and type chart. Doubles started in Gen 3.</div>
+    <div class="tb-chips">${[3,4,5,6,7,8].map(g=>`<button class="chip" data-fmt="g${g}">Gen ${g}<br><small>${{3:"Ruby/Sapphire/Emerald",4:"Diamond/Pearl/Plat",5:"Black/White",6:"X/Y/ORAS",7:"Sun/Moon/USUM",8:"Sword/Shield"}[g]}</small></button>`).join("")}</div>`, el => {
+      let dex = 0;
+      el.querySelectorAll("[data-dex]").forEach(b => b.onclick = () => { dex = +b.dataset.dex; el.querySelectorAll("[data-dex]").forEach(x=>x.classList.toggle("on", x===b)); });
+      el.querySelectorAll("[data-fmt]").forEach(b => b.onclick = () => { const f = b.dataset.fmt; const t = {id:uid(), name:`Team ${teams.length+1}`, format:f, mons:[null,null,null,null,null,null]}; if (dex && (f==="champ"||f==="svi")) t.dex = dex; teams.unshift(t); save(); closeSheet(); openTeam(t); });
     });
   $("#tbImport").onclick = () => sheet(`<h3>Import Showdown paste</h3>
-    <div class="tb-row"><button class="btn primary" data-f="champ">Champions M-C</button><button class="btn" data-f="svi">SV Reg I</button></div>
+    <div class="tb-chips"><button class="chip on" data-f="champ">Champions M-C</button><button class="chip" data-f="svi">SV Reg I</button>${[3,4,5,6,7,8].map(g=>`<button class="chip" data-f="g${g}">Gen ${g}</button>`).join("")}</div>
     <textarea id="tbPaste" rows="10" placeholder="Paste a team in Showdown format…"></textarea><button class="btn primary block" id="tbDoImport">Import</button>`, el => {
-      let f = "champ"; el.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { f = b.dataset.f; el.querySelectorAll("[data-f]").forEach(x=>x.classList.toggle("primary", x===b)); });
-      $("#tbDoImport").onclick = () => { const t = {id:uid(), name:`Imported ${teams.length+1}`, format:f, mons:[]}; const mons = importText(t, $("#tbPaste").value);
-        if (!mons.length){ toast("Couldn't read any legal Pokémon from that paste"); return; }
-        t.mons = mons.concat(Array(6-mons.length).fill(null)); teams.unshift(t); save(); closeSheet(); curTeam = t; render(); };
+      let f = "champ"; el.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { f = b.dataset.f; el.querySelectorAll("[data-f]").forEach(x=>x.classList.toggle("on", x===b)); });
+      $("#tbDoImport").onclick = () => { const t = {id:uid(), name:`Imported ${teams.length+1}`, format:f, mons:[]}; const txt = $("#tbPaste").value;
+        ensureData(t).then(() => { use(t); const mons = importText(t, txt).map(m => ({...m, sp:S(m.s).sp}));
+          if (!mons.length){ toast("Couldn't read any legal Pokémon from that paste"); return; }
+          t.mons = mons.concat(Array(6-mons.length).fill(null)); teams.unshift(t); save(); closeSheet(); openTeam(t); }); };
     });
-  root().querySelectorAll("[data-open]").forEach(b => b.onclick = () => { curTeam = teams.find(t=>t.id===b.dataset.open); render(); });
+  root().querySelectorAll("[data-open]").forEach(b => b.onclick = () => openTeam(teams.find(t=>t.id===b.dataset.open)));
 }
 
+function openTeam(t){ curTeam = t; if (DS[dsKey(t)]){ render(); return; } root().innerHTML = `<div class="card">Loading ${esc(fmtLabel(t))} data…</div>`;
+  ensureData(t).then(render).catch(e => { console.error(e); root().innerHTML = `<div class="card">Couldn't load that data. Check your connection.</div>`; curTeam = null; }); }
 let coachTab = "partners";
 let lastTeamId = null;
 function renderTeam(){
-  const t = curTeam, mons = t.mons;
+  const t = curTeam, mons = t.mons; use(t);
   if (lastTeamId !== t.id){ lastTeamId = t.id; coachTab = "partners"; }
   let h = `<div class="tb-head"><button class="btn small" id="tbBack">‹ Teams</button>
     <input class="tb-name" id="tbName" value="${esc(t.name)}"><button class="btn small" id="tbMenu">⋯</button></div>
-    <div class="hint" style="margin:0 0 8px">${esc(fmt(t).name)}</div><div class="tb-slots">`;
+    <div class="hint" style="margin:0 0 8px">${esc(fmt(t).name)}${t.dex && !isEra(t) ? ` · only Pokémon from ${dexLbl(t.dex)}` : ""}${isEra(t) ? " · no meta data — coach uses stats, typing and roles" : ""}</div><div class="tb-slots">`;
   mons.forEach((m,i) => {
     if (!m) { h += `<button class="tb-slot empty" data-slot="${i}"><span>+</span><small>Add Pokémon</small></button>`; return; }
     const es = effSpecies(m);
@@ -220,11 +270,14 @@ function renderTeam(){
   $("#tbName").onchange = e => { t.name = e.target.value || t.name; save(); };
   $("#tbMenu").onclick = () => sheet(`<h3>${esc(t.name)}</h3>
     <button class="btn block" id="tbExport">Export Showdown paste</button>
+    ${isEra(t) ? "" : `<label>Limit to Pokémon from…</label><div class="tb-chips">${[0,1,2,3,4,5,6,7,8].map(g=>`<button class="chip ${(t.dex||0)===g?"on":""}" data-setdex="${g}">${g?dexLbl(g):"All gens"}</button>`).join("")}</div>`}
     <button class="btn block" id="tbDup">Duplicate team</button>
     <button class="btn block danger" id="tbDel">Delete team</button>`, () => {
       $("#tbExport").onclick = () => sheet(`<h3>Showdown paste</h3><textarea rows="14" readonly id="tbOut">${esc(exportText(t))}</textarea><button class="btn primary block" id="tbCopy">Copy</button>`, () => {
         $("#tbCopy").onclick = () => { const txt = $("#tbOut").value; (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(()=>toast("Copied"), ()=>{ $("#tbOut").select(); toast("Select all and copy"); }); };
       });
+      document.querySelectorAll("[data-setdex]").forEach(b => b.onclick = () => { const g = +b.dataset.setdex; if (g) t.dex = g; else delete t.dex; save(); closeSheet(); render();
+        const out = t.mons.filter(m => m && !inDex(t, m.s)); if (out.length) toast(`${out.map(m=>S(m.s).n).join(", ")} ${out.length>1?"are":"is"} outside that limit`); });
       $("#tbDup").onclick = () => { const c = JSON.parse(JSON.stringify(t)); c.id = uid(); c.name += " (copy)"; teams.unshift(c); save(); closeSheet(); curTeam = c; render(); };
       $("#tbDel").onclick = () => { $("#tbDel").outerHTML = `<button class="btn block danger" id="tbDel2">Tap again to delete</button>`; $("#tbDel2").onclick = () => { teams = teams.filter(x=>x!==t); save(); closeSheet(); curTeam = null; render(); }; };
     });
@@ -259,8 +312,10 @@ function renderCoach(){
     const warn = [];
     const items = mons.map(m=>m.item).filter(Boolean); const dupe = items.filter((x,i)=>items.indexOf(x)!==i);
     if (dupe.length) warn.push(["bad", `Item Clause: ${[...new Set(dupe)].map(i=>G.items[i].n).join(", ")} used twice (not allowed)`]);
+    const outDex = mons.filter(m => !inDex(t, m.s)); if (outDex.length) warn.push(["bad", `${outDex.map(m=>S(m.s).n).join(", ")} ${outDex.length>1?"are":"is"} outside your ${dexLbl(t.dex)} limit`]);
     const nums = mons.map(m=>S(m.s).nm); if (new Set(nums).size !== nums.length) warn.push(["bad","Species Clause: two of the same Pokémon"]);
-    const rc = mons.filter(m=>S(m.s).r).length; if (rc > fmt(t).maxRestricted) warn.push(["bad", `${rc} restricted legendaries (max ${fmt(t).maxRestricted})`]);
+    const rc = mons.filter(m=>S(m.s).r).length; if (isEra(t) && rc) warn.push(["info", `${rc} legendary/mythical — usually banned from in-game Battle Facility doubles`]);
+    if (!isEra(t) && rc > fmt(t).maxRestricted) warn.push(["bad", `${rc} restricted legendaries (max ${fmt(t).maxRestricted})`]);
     const megas = mons.filter(m => effSpecies(m)!==m.s).length; if (megas > 1) warn.push(["info", `${megas} Mega Stones — only one Pokémon can Mega Evolve per battle`]);
     const check = (ok, good, bad) => warn.push([ok?"ok":"warn", ok?good:bad]);
     check(f.fake, `Fake Out ×${f.fake}`, "No Fake Out — it's the most common way to open in doubles");
@@ -274,8 +329,8 @@ function renderCoach(){
       const net = d.weak - d.res - d.imm; const cls = d.weak>=3 && net>=2 ? "hot" : net>=2 ? "warm" : net<=-2 ? "cool" : "";
       return `<div class="tb-def-cell ${cls}"><span class="badge" style="background:${COL[d.type]}">${d.type}</span><span>${d.weak?`<b>${d.weak}</b> weak`:""}${d.weak&&(d.res+d.imm)?" · ":""}${d.res+d.imm?`${d.res+d.imm} resist`:""}${!d.weak&&!(d.res+d.imm)?"—":""}</span></div>`; }).join("")}</div>`;
     const atk = new Set(); mons.forEach(m => m.moves.forEach(i => { const x = G.moves[i]; if (x[2]!=="X" && x[3]>0) atk.add(x[1]); }));
-    const hits = TYPES.filter(d => [...atk].some(a => eff(a,d) > 1)), miss = TYPES.filter(d => !hits.includes(d));
-    h += `<h4>Super-effective coverage</h4><div class="hint">Your attacks hit ${hits.length}/18 types super-effectively.</div>${miss.length?`<div class="hint">Nothing super-effective vs: ${miss.map(badge).join("")}</div>`:""}`;
+    const hits = TY().filter(d => [...atk].some(a => ef(a,d) > 1)), miss = TY().filter(d => !hits.includes(d));
+    h += `<h4>Super-effective coverage</h4><div class="hint">Your attacks hit ${hits.length}/${TY().length} types super-effectively.</div>${miss.length?`<div class="hint">Nothing super-effective vs: ${miss.map(badge).join("")}</div>`:""}`;
     el.innerHTML = h;
   }
 }
@@ -292,7 +347,7 @@ function slotEditor(){
   h += `<label>Item</label><button class="btn block left" id="edItem">${m.item?`<b>${esc(G.items[m.item].n)}</b> ${pct(set&&set.i,m.item)}<br><small>${esc(G.items[m.item].d)}</small>`:"Choose item…"}</button>`;
   h += `<label>Moves</label>`;
   for (let k=0;k<4;k++){ const i = m.moves[k];
-    h += i!==undefined ? (() => { const x = mv(i); return `<button class="btn block left tb-move" data-mv="${k}"><span class="badge" style="background:${COL[x.t]}">${x.t}</span> <b>${esc(x.n)}</b> ${pct(set&&set.m,i)}<br><small>${x.c==="X"?"Status":x.c==="P"?"Physical":"Special"}${x.bp?` · ${x.bp} BP`:""}${x.spread?" · spread":""}${x.pri?` · priority ${x.pri>0?"+":""}${x.pri}`:""}</small></button>`; })()
+    h += i!==undefined ? (() => { const x = mv(i); return `<button class="btn block left tb-move" data-mv="${k}"><span class="badge" style="background:${COL[x.t]}">${x.t}</span> <b>${esc(x.n)}</b> ${pct(set&&set.m,i)}<br><small>${x.c==="X"?"Status":x.c==="P"?"Physical":"Special"}${x.bp?` · ${x.bp} BP`:""}${x.spread===1?" · hits both foes":x.spread===2?" · hits all incl. partner":""}${x.pri?` · priority ${x.pri>0?"+":""}${x.pri}`:""}</small></button>`; })()
       : `<button class="btn block left tb-move" data-mv="${k}">+ Add move</button>`;
   }
   h += `<button class="btn block danger" id="edRemove">Remove from team</button>`;
@@ -336,7 +391,7 @@ function itemPicker(){
   const row = (k, group, extra="") => { if (seen.has(k)) return; seen.add(k); rows.push({key:k, group, search:toID(G.items[k].n), html:`<span class="li-main"><b>${esc(G.items[k].n)}</b>${extra}<br><small>${esc(G.items[k].d)}</small></span>`}); };
   metaItems.forEach(([k,p]) => row(k, "Meta picks", ` <span class="pct">${Math.round(p)}%</span>`));
   stones.forEach(k => row(k, "Mega Stone"));
-  COMMON_ITEMS.filter(k => legal.includes(k)).forEach(k => row(k, "Common in doubles"));
+  itemIdeas(t, m.s, m.moves).forEach(x => row(x.k, "Suggested", ` <span class="tag">${esc(x.why)}</span>`));
   legal.sort((a,b)=>G.items[a].n.localeCompare(G.items[b].n)).forEach(k => row(k, "All items"));
   rows.unshift({key:"", group:"", search:"none", html:`<span class="li-main">No item</span>`});
   listPicker(`Item for ${esc(S(m.s).n)}`, rows, k => { m.item = k; save(); render(); slotEditor(); }, {noFocus:true, onClose: () => slotEditor()});
@@ -346,7 +401,7 @@ function movePicker(k){
   const taken = new Set(m.moves.filter((x,j)=>j!==k));
   const rows = [], seen = new Set();
   const row = (i, group, extra="") => { if (seen.has(i) || taken.has(i)) return; seen.add(i); const x = mv(i);
-    rows.push({key:String(i), group, search:toID(x.n)+toID(x.t), html:`<span class="badge" style="background:${COL[x.t]}">${x.t}</span><span class="li-main"><b>${esc(x.n)}</b>${extra}<br><small>${x.c==="X"?"Status":x.c==="P"?"Phys":"Spec"}${x.bp?` · ${x.bp} BP`:""}${x.acc?` · ${x.acc}%`:""}${x.spread?" · spread":""} — ${esc(x.d)}</small></span>`}); };
+    rows.push({key:String(i), group, search:toID(x.n)+toID(x.t), html:`<span class="badge" style="background:${COL[x.t]}">${x.t}</span><span class="li-main"><b>${esc(x.n)}</b>${extra}<br><small>${x.c==="X"?"Status":x.c==="P"?"Phys":"Spec"}${x.bp?` · ${x.bp} BP`:""}${x.acc?` · ${x.acc}%`:""}${x.spread===1?" · hits both foes":x.spread===2?" · hits all incl. partner":""} — ${esc(x.d)}</small></span>`}); };
   if (set) set.m.filter(x=>L.includes(x[0])).forEach(([i,p]) => row(i, "Meta picks", ` <span class="pct">${Math.round(p)}%</span>`));
   heuristicMoves(t, m.s).forEach(x => row(x.i, "Suggested", ` <span class="tag">${esc(x.why||"")}</span>`));
   L.map(mv).sort((a,b)=>a.n.localeCompare(b.n)).forEach(x => row(x.i, "All learnable moves"));
@@ -367,11 +422,12 @@ function closeSheet(user){ const el = $("#tbSheet"); if (el) el.hidden = true; d
 function toast(msg){ let el = $("#tbToast"); if (!el){ el = document.createElement("div"); el.id = "tbToast"; document.body.appendChild(el); } el.textContent = msg; el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove("show"), 2200); }
 
 /* ---------- boot ---------- */
+document.addEventListener("error", e => { if (e.target && e.target.tagName === "IMG") e.target.style.visibility = "hidden"; }, true);
 let loading = null;
 window.openTeams = function(){
   load(); render();
-  if (!G && !loading) loading = Promise.all([fetch("data/game.json").then(r=>r.json()), fetch("data/meta.json").then(r=>r.json())]).then(([g,m]) => {
-    G = g; M = m; G.moves.forEach((x,i) => moveIdx[toID(x[0])] = i); render();
+  if (!DS.main && !loading) loading = Promise.all([fetch("data/game.json").then(r=>r.json()), fetch("data/meta.json").then(r=>r.json())]).then(([g,m]) => {
+    DS.main = g; M = m; render();
   }).catch(() => { root().innerHTML = `<div class="card">Couldn't load team data. Check your connection and reopen this tab.</div>`; loading = null; });
 };
 })();
