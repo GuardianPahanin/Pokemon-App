@@ -223,17 +223,28 @@ function renderList(){
   h += `<div class="hint" style="margin-top:16px">Teams are saved on this device. Meta suggestions come from a Pikalytics snapshot (Showdown ladder + tournament teams, ${esc(M.champ.date)}). Older-generation teams have no meta data, so their coach uses stats, typing and doubles roles. Legal Pokémon, moves and items come from Pokémon Showdown.</div>`;
   root().innerHTML = h;
   $("#tbNew").onclick = () => sheet(`<h3>New team</h3>
+    <label>Team name</label><input id="ntName" value="Team ${teams.length+1}" autocomplete="off">
     <label>Today's rules (with meta coach)</label>
-    <button class="btn primary block" data-fmt="champ">VGC 2026 Reg M-C<br><small>Pokémon Champions · current</small></button>
-    <button class="btn block" data-fmt="svi">VGC 2025 Reg I<br><small>Scarlet/Violet · 2 restricted</small></button>
-    <label>Limit to Pokémon from…</label>
-    <div class="tb-chips" id="dexChips"><button class="chip on" data-dex="0">All gens</button>${[1,2,3,4,5,6,7,8].map(g=>`<button class="chip" data-dex="${g}">${dexLbl(g)}</button>`).join("")}</div>
+    <button class="btn block opt on" data-fmt="champ">VGC 2026 Reg M-C<br><small>Pokémon Champions · current</small></button>
+    <button class="btn block opt" data-fmt="svi">VGC 2025 Reg I<br><small>Scarlet/Violet · 2 restricted</small></button>
+    <div id="ntDex"><label>Limit to Pokémon from…</label>
+    <div class="tb-chips"><button class="chip on" data-dex="0">All gens</button>${[1,2,3,4,5,6,7,8].map(g=>`<button class="chip" data-dex="${g}">${dexLbl(g)}</button>`).join("")}</div></div>
     <label>Classic generation (that game's rules)</label>
     <div class="hint">That generation's Pokédex, learnsets, items, abilities and type chart. Doubles started in Gen 3.</div>
-    <div class="tb-chips">${[3,4,5,6,7,8].map(g=>`<button class="chip" data-fmt="g${g}">Gen ${g}<br><small>${{3:"Ruby/Sapphire/Emerald",4:"Diamond/Pearl/Plat",5:"Black/White",6:"X/Y/ORAS",7:"Sun/Moon/USUM",8:"Sword/Shield"}[g]}</small></button>`).join("")}</div>`, el => {
-      let dex = 0;
-      el.querySelectorAll("[data-dex]").forEach(b => b.onclick = () => { dex = +b.dataset.dex; el.querySelectorAll("[data-dex]").forEach(x=>x.classList.toggle("on", x===b)); });
-      el.querySelectorAll("[data-fmt]").forEach(b => b.onclick = () => { const f = b.dataset.fmt; const t = {id:uid(), name:`Team ${teams.length+1}`, format:f, mons:[null,null,null,null,null,null]}; if (dex && (f==="champ"||f==="svi")) t.dex = dex; teams.unshift(t); save(); closeSheet(); openTeam(t); });
+    <div class="tb-chips">${[3,4,5,6,7,8].map(g=>`<button class="chip opt" data-fmt="g${g}">Gen ${g}<br><small>${{3:"Ruby/Sapphire/Emerald",4:"Diamond/Pearl/Plat",5:"Black/White",6:"X/Y/ORAS",7:"Sun/Moon/USUM",8:"Sword/Shield"}[g]}</small></button>`).join("")}</div>
+    <div class="nt-foot"><div class="hint" id="ntSummary"></div><button class="btn primary block" id="ntCreate">Create team</button></div>`, el => {
+      let dex = 0, f = "champ";
+      const sync = () => {
+        el.querySelectorAll("[data-fmt]").forEach(x => x.classList.toggle("on", x.dataset.fmt === f));
+        el.querySelectorAll("[data-dex]").forEach(x => x.classList.toggle("on", +x.dataset.dex === dex));
+        const modern = f === "champ" || f === "svi"; $("#ntDex").classList.toggle("dim", !modern);
+        $("#ntSummary").textContent = "Creating: " + fmtLabel({format:f, dex: modern ? dex : 0});
+      };
+      el.querySelectorAll("[data-fmt]").forEach(b => b.onclick = () => { f = b.dataset.fmt; sync(); });
+      el.querySelectorAll("[data-dex]").forEach(b => b.onclick = () => { dex = +b.dataset.dex; if (f !== "champ" && f !== "svi") f = "champ"; sync(); });
+      $("#ntCreate").onclick = () => { const t = {id:uid(), name: ($("#ntName").value.trim() || `Team ${teams.length+1}`), format:f, mons:[null,null,null,null,null,null]};
+        if (dex && (f==="champ"||f==="svi")) t.dex = dex; teams.unshift(t); save(); closeSheet(); openTeam(t); };
+      sync();
     });
   $("#tbImport").onclick = () => sheet(`<h3>Import Showdown paste</h3>
     <div class="tb-chips"><button class="chip on" data-f="champ">Champions M-C</button><button class="chip" data-f="svi">SV Reg I</button>${[3,4,5,6,7,8].map(g=>`<button class="chip" data-f="g${g}">Gen ${g}</button>`).join("")}</div>
