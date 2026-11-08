@@ -17,8 +17,9 @@ function spriteId(sp){
   for(const s of ['-male','-normal','-standard','-incarnate','-altered','-land','-ordinary','-aria','-shield','-average','-baile','-midday','-solo','-red-meteor','-amped','-ice','-full-belly','-single-strike','-family-of-four','-zero','-curly','-green-plumage','-two-segment','-disguised','-50','-red','-plant','-overcast','-west','-spring','-red-striped','-small','-meteor','-breed','-mask','-cap','-plumage']) if(pkByIdent[n+s]) return pkByIdent[n+s];
   return null;
 }
-const restricted=sp=>(sp.tags||[]).includes('Restricted Legendary');
-const mythical=sp=>(sp.tags||[]).includes('Mythical');
+const tagsOf=sp=>sp.tags||(sp.baseSpecies&&Dex[toID(sp.baseSpecies)]||{}).tags||[];
+const restricted=sp=>tagsOf(sp).includes('Restricted Legendary');
+const mythical=sp=>tagsOf(sp).includes('Mythical');
 const isPickable=sp=>(!sp.battleOnly||sp.requiredItem)&&!/-(Mega|Gmax|Totem|Primal)/.test(sp.name)&&!sp.isCosmeticForme;
 // learnset w/ prevo + base forme fallback
 function learnFor(id,table,filter){
@@ -65,7 +66,7 @@ const out={
 };
 const missingSprite=[], needSprites=[];
 for(const id of usedSpecies){ const s=Dex[id]; let sid=spriteId(s); if(sid&&!fs.existsSync('/home/claude/pokemon-type-app/sprites/'+sid+'.png')){ needSprites.push(sid); sid=null; } if(!sid) missingSprite.push(s.name);
-  out.species[id]={n:s.name,t:s.types,a:Object.values(s.abilities),s:[s.baseStats.hp,s.baseStats.atk,s.baseStats.def,s.baseStats.spa,s.baseStats.spd,s.baseStats.spe],sp:sid||s.num,nm:s.num,...(restricted(s)?{r:1}:{}),...(((s.tags||(s.baseSpecies&&Dex[toID(s.baseSpecies)]||{}).tags)||[]).some(x=>/Legendary|Mythical/.test(x))?{lg:1}:{}),...(s.requiredItem?{ri:toID(s.requiredItem)}:{})};
+  out.species[id]={n:s.name,t:s.types,a:Object.values(s.abilities),s:[s.baseStats.hp,s.baseStats.atk,s.baseStats.def,s.baseStats.spa,s.baseStats.spd,s.baseStats.spe],sp:sid||s.num,nm:s.num,...(restricted(s)?{r:1}:{}),...(((s.tags||(s.baseSpecies&&Dex[toID(s.baseSpecies)]||{}).tags)||[]).some(x=>/Legendary|Mythical/.test(x))?{lg:1}:{}),...(((s.tags||(s.baseSpecies&&Dex[toID(s.baseSpecies)]||{}).tags)||[]).includes('Ultra Beast')?{ub:1}:{}),...(s.requiredItem?{ri:toID(s.requiredItem)}:{})};
   for(const a of Object.values(s.abilities)){ const ai=Abil[toID(a)]; if(ai) {const ta=TA[toID(a)]; out.abilities[a]=((ta&&(ta.shortDesc||ta.desc))||'').slice(0,140);} } }
 for(const[f,F] of Object.entries(formats)) out.formats[f]={name:F.name,maxRestricted:F.maxRestricted,items:F.items,learn:Object.fromEntries(F.species.map(s=>[s,F.learn[s].map(m=>midx[m])]))};
 fs.writeFileSync('/home/claude/scripts/build/game.json',JSON.stringify(out));

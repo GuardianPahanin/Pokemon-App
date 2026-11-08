@@ -24,9 +24,9 @@ for(let g=3;g<=8;g++){
     if((s.gen||0)>g) continue; { const fg=/Alola/.test(s.name)?7:/Galar/.test(s.name)?8:/Hisui|Paldea|Bloodmoon/.test(s.name)?9:0; if(fg>g) continue; } if(/-(Gmax|Totem|Primal)$/.test(s.name)) continue;
     const isMega=/-Mega/.test(s.name); if(isMega&&!(g===6||g===7)) continue;
     let fd=base.fd[id]||{}; for(let x=g;x<=8;x++){ if(mods[x].fd[id]){ fd=mods[x].fd[id]; break; } } if(!isMega&&(fd.isNonstandard||fd.tier==='Illegal')) continue;
-    if(s.battleOnly&&!s.requiredItem&&!isMega) continue; if(s.isCosmeticForme) continue;
+    if(s.battleOnly&&!isMega&&!/Crowned/.test(s.name)) continue; if(s.isCosmeticForme) continue;
     const abil=g>=5?Object.values(s.abilities||{}):Object.entries(s.abilities||{}).filter(([k])=>k!=='H').map(([,v])=>v);
-    species[id]={n:s.name,t:s.types,a:abil.length?abil:['No Ability'],s:[s.baseStats.hp,s.baseStats.atk,s.baseStats.def,s.baseStats.spa,s.baseStats.spd,s.baseStats.spe],sp:spriteFor(id,s),nm:s.num,...((s.tags||[]).some(t=>/Restricted|Mythical/.test(t))?{r:1}:{}),...(((s.tags||(s.baseSpecies&&base.dex[toID(s.baseSpecies)]||{}).tags)||[]).some(t=>/Legendary|Mythical/.test(t))?{lg:1}:{}),...(s.evos&&s.evos.length?{nfe:1}:{})};
+    species[id]={n:s.name,t:s.types,a:abil.length?abil:['No Ability'],s:[s.baseStats.hp,s.baseStats.atk,s.baseStats.def,s.baseStats.spa,s.baseStats.spd,s.baseStats.spe],sp:spriteFor(id,s),nm:s.num,...(((s.tags||(s.baseSpecies&&base.dex[toID(s.baseSpecies)]||{}).tags)||[]).some(t=>/Restricted|Mythical/.test(t))?{r:1}:{}),...(((s.tags||(s.baseSpecies&&base.dex[toID(s.baseSpecies)]||{}).tags)||[]).some(t=>/Legendary|Mythical/.test(t))?{lg:1}:{}),...(((s.tags||(s.baseSpecies&&base.dex[toID(s.baseSpecies)]||{}).tags)||[]).includes('Ultra Beast')?{ub:1}:{}),...(s.evos&&s.evos.length?{nfe:1}:{})};
     for(const a of abil){ const ta=TA[toID(a)]; if(ta) abilities[a]=(ta.shortDesc||ta.desc||'').slice(0,140); }
     if(isMega) continue;
     // learnset: sources from LOGEN..g, excluding Virtual Console; include prevos & base forme

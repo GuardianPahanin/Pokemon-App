@@ -59,10 +59,10 @@ const STAPLE = {
 };
 
 /* ---------- suggestions ---------- */
-function teamCtx(t, exceptSlot){ const used = new Set(), mons = t.mons.filter((m,i)=>m && i!==exceptSlot); mons.forEach(m => m.item && used.add(m.item)); return {used, mega: mons.some(m => effSpecies(m)!==m.s)}; }
+function teamCtx(t, exceptSlot){ const used = new Set(), mons = t.mons.filter((m,i)=>m && i!==exceptSlot); mons.forEach(m => m.item && used.add(m.item)); return {used, mega: mons.some(m => effSpecies(m)!==m.s), noMega: noMegas()}; }
 function suggestSet(t, sid, ctx){
   ctx = ctx || {used:new Set(), mega:false};
-  const okItem = i => itemLegal(t, i) && !ctx.used.has(i) && !(ctx.mega && G.items[i].m);
+  const okItem = i => itemLegal(t, i) && !ctx.used.has(i) && !((ctx.mega || ctx.noMega) && G.items[i].m);
   const set = setOf(t, sid), sp = S(sid), L = learnable(t, sid);
   let ability = GOOD_ABIL.find(x => sp.a.includes(x)) || sp.a[0], item = "", moves = [];
   if (set){
@@ -141,10 +141,13 @@ function defenseTable(t){
 /* Partner filters — add new ones to this list */
 const FILTERS = [
   {id:"nolegend", label:"No legendaries", keep: id => !S(id).lg},
+  {id:"nomega", label:"No Megas", keep: (id, t) => { const st = setOf(t, id); return !(st && st.i[0] && (G.items[st.i[0][0]]||{}).m); }},
+  {id:"noub", label:"No Ultra Beasts", keep: id => !S(id).ub},
 ];
+const noMegas = () => activeFilters.includes("nomega");
 let activeFilters = (() => { try { return JSON.parse(localStorage.getItem("partner-filters")) || []; } catch(e){ return []; } })();
 const saveFilters = () => { try { localStorage.setItem("partner-filters", JSON.stringify(activeFilters)); } catch(e){} };
-const passesFilters = id => FILTERS.every(f => !activeFilters.includes(f.id) || f.keep(id));
+const passesFilters = (id, t) => FILTERS.every(f => !activeFilters.includes(f.id) || f.keep(id, t));
 function partnerSuggestions(t, limit=10){
   const mons = t.mons.filter(Boolean); const have = new Set(mons.map(m => S(m.s).nm));
   const restrictedCount = mons.filter(m => S(m.s).r).length;
@@ -152,10 +155,10 @@ function partnerSuggestions(t, limit=10){
   const pool = new Set(meta(t).usage.map(u=>u[0]).filter(id => inDex(t,id)));
   for (const m of mons){ const s = setOf(t, m.s); if (s) s.tm.forEach(x => inDex(t,x[0]) && pool.add(x[0])); }
   const metaPool = pool.size >= 12;
-  if ([...pool].filter(passesFilters).length < 12) legalSpecies(t).forEach(id => { if (!S(id).nfe) pool.add(id); });
+  if ([...pool].filter(id => passesFilters(id, t)).length < 12) legalSpecies(t).forEach(id => { if (!S(id).nfe) pool.add(id); });
   const out = [];
   for (const c of pool){
-    if (!fmt(t).learn[c] || have.has(S(c).nm) || !inDex(t,c) || !passesFilters(c)) continue;
+    if (!fmt(t).learn[c] || have.has(S(c).nm) || !inDex(t,c) || !passesFilters(c, t)) continue;
     if (S(c).r && restrictedCount >= fmt(t).maxRestricted) continue;
     let score = 0; const why = [];
     let pair = 0, best = null;
@@ -163,7 +166,7 @@ function partnerSuggestions(t, limit=10){
     if (best && pair >= 10) why.push(`Paired with ${S(best).n} on ${Math.round(pair)}% of teams`);
     const u = usageOf(t, c); score += u * 0.6; if (!mons.length && u) why.push(`${u.toFixed(1)}% usage`);
     if (S(c).a.every(a => ["Truant","Slow Start","Defeatist","Klutz","Stall"].includes(a))){ score -= 40; }
-    if (!u){ const bst = S(c).s.reduce((a,b)=>a+b,0); score += (bst - 420) / 6; if (!mons.length || (bst >= 580 && !why.length)) why.push(`Base stat total ${bst}`); if (S(c).r && isEra(t)){ score -= 25; why.push("Legendary — often banned in-game"); } }
+    if (!u){ const bst = S(c).s.reduce((a,b)=>a+b,0); score += (bst - 420) / 6; if (!mons.length || (bst >= 580 && !why.length)) why.push(`Base stat total ${bst}`); if (S(c).r && isEra(t)){ score -= 60; why.push("Legendary — often banned in-game"); } }
     const set = setOf(t, c); const cm = set ? set.m.filter(x=>x[1]>=15).map(x=>toID(G.moves[x[0]][0])) : heuristicMoves(t,c).map(m=>toID(m.n));
     const ct = S(effSpecies({s:c, item: suggestSet(t,c,teamCtx(t)).item})).t;
     let cover = [];
@@ -186,7 +189,7 @@ function sampleTeams(t){
   return meta(t).teams.map(tm => ({tm, overlap: tm.filter(x=>mine.has(x.s)).length}))
     .filter(x => !mine.size || x.overlap>0).sort((a,b)=>b.overlap-a.overlap).slice(0,8);
 }
-function makeMon(t, sid, item, slot){ const ctx = teamCtx(t, slot); const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || (ctx.mega && G.items[item].m))) item = ""; return {s:sid, sp:S(sid).sp, ability:s.ability, item: item || s.item, moves:s.moves}; }
+function makeMon(t, sid, item, slot){ const ctx = teamCtx(t, slot); const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || ((ctx.mega || ctx.noMega) && G.items[item].m))) item = ""; return {s:sid, sp:S(sid).sp, ability:s.ability, item: item || s.item, moves:s.moves}; }
 function addToTeam(t, sid, item){ const i = t.mons.findIndex(x=>!x); if (i<0) return false; t.mons[i] = makeMon(t, sid, item); save(); return true; }
 function autoFill(t){ while (t.mons.some(x=>!x)){ const p = partnerSuggestions(t,1)[0]; if (!p) break; addToTeam(t, p.id); } }
 
