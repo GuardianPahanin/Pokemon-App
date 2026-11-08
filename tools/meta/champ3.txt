@@ -1,0 +1,12 @@
+## Sylveon
+MOVES: Hyper Voice=63.3; Hyper Beam=26.0; Detect=24.1; Protect=10.5; Quick Attack=9.8; Calm Mind=4.6; Yawn=3.9; Moonblast=3.2
+ITEMS: Life Orb=53.6; Leftovers=15.2; Fairy Feather=14.8; Grassy Seed=5.4; Sitrus Berry=3.4
+TEAMMATES: Incineroar=45.0; Garchomp=41.6; Charizard=37.8; Farigiraf=35.7; Kingambit=31.9; Rillaboom=30.0
+## Staraptor
+MOVES: Close Combat=61.7; Protect=35.5; Brave Bird=30.9; Tailwind=14.0; Roost=12.2; Dual Wingbeat=8.6; Final Gambit=7.5
+ITEMS: Staraptite=93.9; Rocky Helmet=5.4
+TEAMMATES: Gholdengo=45.2; Whimsicott=35.4; Garchomp=28.8; Rillaboom=26.8; Raichu=24.4; Basculegion=23.2
+## Volcarona
+MOVES: Quiver Dance=28.7; Protect=23.9; Rage Powder=23.8; Heat Wave=22.8; Struggle Bug=22.6; Tailwind=16.3; Overheat=13.6; Fiery Dance=9.3
+ITEMS: Grassy Seed=54.8; Leftovers=14.1; Sitrus Berry=13.0; Life Orb=4.6; Focus Sash=3.5
+TEAMMATES: Rillaboom=68.3; Garchomp=44.8; Incineroar=40.6; Raichu=40.1; Gholdengo=34.0; Sneasler=20.1

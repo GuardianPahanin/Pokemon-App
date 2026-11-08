@@ -1,0 +1,66 @@
+## Salamence
+MOVES: Hyper Voice=57.4; Protect=38.8; Tailwind=20.6; Draco Meteor=19.6; Double-Edge=11.1; Flamethrower=10.4
+ABILITIES: Intimidate=98.5
+ITEMS: Salamencite=98.2; Rocky Helmet=0.7
+TEAMMATES: Sneasler=58.0; Rillaboom=48.4; Kingambit=28.1; Tyranitar=28.1; Excadrill=25.6; Milotic=23.9
+## Basculegion
+MOVES: Wave Crash=42.9; Last Respects=37.2; Aqua Jet=20.6; Protect=17.2; Flip Turn=12.4; Liquidation=2.3
+ABILITIES: Mold Breaker=11.7; Adaptability=0
+ITEMS: Life Orb=59.8; Sitrus Berry=17.3; Rocky Helmet=9.5; Focus Sash=5.7; Choice Scarf=3.7; Mystic Water=1.5
+TEAMMATES: Sneasler=41.1; Kingambit=36.9; Rillaboom=32.9; Garchomp=29.4; Whimsicott=26.9; Charizard=20.0
+TEAMS:
+Salamence-Mega, Raichu-Mega-Y, Sylveon, Basculegion, Kingambit, Incineroar
+## Gholdengo
+MOVES: Shadow Ball=48.2; Make It Rain=46.3; Protect=37.9; Nasty Plot=36.5; Power Gem=3.9; Thunderbolt=1.0
+ABILITIES: Good as Gold=66.5
+ITEMS: Life Orb=87.9; Grassy Seed=3.6; Leftovers=2.9; Air Balloon=1.6
+TEAMMATES: Rillaboom=60.0; Raichu=36.6; Incineroar=35.3; Garchomp=30.9; Staraptor=25.6; Salamence=23.9
+TEAMS:
+Tyranitar-Mega, Excadrill, Staraptor-Mega, Gholdengo, Milotic, Sinistcha
+## Raichu
+MOVES: Zap Cannon=50.2; Fake Out=39.4; Protect=33.0; Focus Blast=27.8; Volt Tackle=8.6; Volt Switch=8.2; Rising Voltage=3.6; Encore=3.5
+ABILITIES: Lightning Rod=16.2; Static=0.9
+ITEMS: Raichunite Y=74.8; Raichunite X=23.1; Rocky Helmet=1.0; Focus Sash=0.6
+TEAMMATES: Rillaboom=56.0; Gholdengo=37.4; Incineroar=32.4; Sneasler=26.6; Garchomp=25.8; Volcarona=21.9
+## Politoed
+MOVES: Weather Ball=44.5; Muddy Water=37.9; Protect=27.7; Ice Beam=25.5; Perish Song=3.9; Psych Up=2.2; Encore=2.0; Icy Wind=1.6
+ABILITIES: Drizzle=99.1
+ITEMS: Sitrus Berry=50.5; Mystic Water=18.8; Life Orb=14.9; Leftovers=8.8; Eject Button=2.2; Choice Scarf=1.6
+TEAMMATES: Archaludon=87.0; Golisopod=78.4; Charizard=70.4; Grimmsnarl=67.5; Farigiraf=63.7; Incineroar=22.4
+TEAMS:
+Gengar-Mega, Rillaboom, Incineroar, Politoed, Archaludon, Swampert-Mega
+Gengar-Mega, Garchomp, Incineroar, Rillaboom, Archaludon, Politoed
+Gengar-Mega, Incineroar, Politoed, Rillaboom, Archaludon, Froslass-Mega
+## Grimmsnarl
+MOVES: Light Screen=65.2; Reflect=54.0; Parting Shot=48.0; Spirit Break=42.8; Fake Out=4.9; Foul Play=1.6
+ABILITIES: Prankster=0
+ITEMS: Rocky Helmet=36.6; Light Clay=22.2; Sitrus Berry=10.0; Choice Scarf=8.9; Leftovers=6.2; Life Orb=3.1
+TEAMMATES: Archaludon=83.8; Charizard=78.0; Golisopod=74.1; Politoed=69.6; Farigiraf=61.3; Pelipper=15.6
+TEAMS:
+Tyranitar-Mega, Grimmsnarl, Sinistcha, Annihilape, Rotom-Wash, Scovillain-Mega
+Staraptor-Mega, Metagross-Mega, Toxapex, Grimmsnarl, Sinistcha, Basculegion
+## Pelipper
+MOVES: Hurricane=38.4; Weather Ball=37.3; Tailwind=25.2; Wide Guard=17.4; Protect=8.6; Helping Hand=4.9
+ABILITIES: Drizzle=98.9
+ITEMS: Sitrus Berry=50.0; Focus Sash=34.7; Life Orb=7.3; Leftovers=2.6; Damp Rock=1.5
+TEAMMATES: Archaludon=67.3; Golisopod=46.8; Sneasler=30.7; Swampert=23.5; Rillaboom=20.2; Indeedee-F=18.1
+TEAMS:
+Golisopod-Mega, Basculegion-F, Pelipper, Swampert-Mega, Toxapex, Primarina
+## Whimsicott
+MOVES: Tailwind=63.4; Moonblast=52.8; Protect=21.7; Encore=20.8; Charm=6.7; Sunny Day=6.1; Fake Tears=3.3; Helping Hand=2.2
+ABILITIES: Prankster=0
+ITEMS: Focus Sash=81.5; Life Orb=9.9; Occa Berry=2.1; Sitrus Berry=1.2
+TEAMMATES: Garchomp=48.1; Basculegion=36.7; Charizard=35.7; Kingambit=28.2; Staraptor=27.4; Sneasler=19.3
+## Milotic
+MOVES: Scald=43.0; Protect=31.3; Coil=22.4; Muddy Water=22.3; Ice Beam=19.4; Icy Wind=19.2; Hypnosis=16.1; Recover=6.6
+ABILITIES: Competitive=89.5
+ITEMS: Leftovers=56.1; Sitrus Berry=31.3; Psychic Seed=6.8; Grassy Seed=2.5
+TEAMMATES: Tyranitar=37.2; Sneasler=37.1; Salamence=36.2; Rillaboom=34.4; Excadrill=33.0; Gholdengo=28.8
+TEAMS:
+Golisopod-Mega, Pawmot, Gardevoir-Mega, Milotic, Indeedee, Arcanine-Hisui
+Staraptor-Mega, Tyranitar-Mega, Excadrill, Sinistcha, Milotic, Gholdengo
+## Tyranitar
+MOVES: Rock Slide=49.8; Knock Off=44.0; Protect=40.5; Dragon Dance=9.2; Low Kick=8.9; High Horsepower=2.8
+ABILITIES: Sand Stream=97.6
+ITEMS: Tyranitarite=86.7; Rocky Helmet=3.5; Chople Berry=2.9; Life Orb=2.1
+TEAMMATES: Excadrill=71.3; Salamence=45.8; Sneasler=45.4; Milotic=40.2; Indeedee=32.9; Gholdengo=25.2

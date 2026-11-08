@@ -10,3 +10,10 @@ It's a static PWA with no build step: plain HTML, CSS and JS. It works offline o
 3. Share → **Add to Home Screen**.
 
 When you update the app, bump `CACHE` in `sw.js` so installed copies pick up the change.
+
+## Doubles team builder
+Open the **Teams** tab to build VGC doubles teams (Champions Reg M-C or SV Reg I). It has legal learnsets, items and abilities, plus a coach that suggests partners, sets and tournament teams.
+
+- `data/game.json` holds the Pokémon, moves, items and learnsets for each format, generated from Pokémon Showdown's data by `tools/build.mjs`.
+- `data/meta.json` holds the usage snapshot from Pikalytics, generated from `tools/meta/*.txt` by `tools/meta.mjs`.
+- To refresh the meta, update the text files and rerun both scripts (or ask Claude to do it).

@@ -1,0 +1,32 @@
+## Grimmsnarl
+MOVES: Light Screen=93.7; Spirit Break=82.3; Reflect=79.0; Thunder Wave=69.7; Fake Out=22.3; Scary Face=16.3; Foul Play=15.6; Parting Shot=6.9
+ITEMS: Light Clay=75.6; Covert Cloak=21.0
+TEAMMATES: Miraidon=62.8; Incineroar=56.2; Calyrex-Ice=40.2; Volcarona=28.4; Zamazenta-Crowned=24.4; Calyrex-Shadow=24.1
+## Kyogre
+MOVES: Water Spout=96.0; Origin Pulse=86.9; Protect=62.5; Hydro Pump=55.4; Thunder=44.5; Ice Beam=33.5; Tera Blast=9.8
+ITEMS: Mystic Water=41.8; Choice Scarf=13.9; Assault Vest=12.1; Choice Specs=9.1; Covert Cloak=8.0; Splash Plate=6.4
+TEAMMATES: Urshifu-Rapid-Strike=45.7; Calyrex-Ice=41.9; Rillaboom=32.9; Amoonguss=30.8; Tornadus=27.8; Smeargle=22.9
+## Volcarona
+MOVES: Protect=85.3; Quiver Dance=79.7; Fiery Dance=60.4; Struggle Bug=48.5; Giga Drain=36.9; Flamethrower=35.2; Rage Powder=21.5; Tailwind=14.0
+ITEMS: Leftovers=41.8; Electric Seed=34.7; Rocky Helmet=10.3; Covert Cloak=8.0
+TEAMMATES: Miraidon=67.3; Incineroar=61.7; Zamazenta-Crowned=37.9; Grimmsnarl=29.6; Rillaboom=28.3; Chien-Pao=25.0
+## Smeargle
+MOVES: Follow Me=96.5; Spore=86.6; Fake Out=84.0; Decorate=80.7; Wide Guard=21.2; Spiky Shield=12.2
+ITEMS: Focus Sash=96.1
+TEAMMATES: Calyrex-Ice=42.2; Calyrex-Shadow=39.3; Rillaboom=35.8; Tornadus=34.0; Raging Bolt=29.5; Zamazenta-Crowned=25.4
+## Landorus
+MOVES: Earth Power=99.3; Sludge Bomb=98.7; Protect=91.3; Sandsear Storm=53.1; Taunt=29.1; Substitute=11.8
+ITEMS: Life Orb=84.1; Choice Scarf=8.4; Focus Sash=7.2
+TEAMMATES: Calyrex-Ice=64.0; Miraidon=61.0; Urshifu-Rapid-Strike=48.9; Incineroar=47.6; Farigiraf=22.5; Kyogre=20.8
+## Tornadus
+MOVES: Tailwind=99.8; Bleakwind Storm=96.7; Taunt=79.8; Protect=75.2; Rain Dance=30.2
+ITEMS: Covert Cloak=32.3; Sharp Beak=29.8; Rocky Helmet=13.1; Focus Sash=9.0; Mental Herb=7.7
+TEAMMATES: Calyrex-Shadow=52.8; Rillaboom=44.9; Zamazenta-Crowned=43.6; Urshifu-Rapid-Strike=41.9; Smeargle=37.2; Kyogre=32.4
+## Flutter Mane
+MOVES: Moonblast=96.8; Protect=69.8; Icy Wind=65.5; Shadow Ball=62.8; Taunt=49.6; Thunder Wave=25.0; Dazzling Gleam=19.8
+ITEMS: Focus Sash=51.6; Booster Energy=31.9; Choice Specs=14.4
+TEAMMATES: Incineroar=52.2; Groudon=41.0; Koraidon=29.3; Calyrex-Ice=27.3; Raging Bolt=26.9; Miraidon=25.2
+## Farigiraf
+MOVES: Trick Room=98.4; Helping Hand=85.0; Foul Play=84.9; Psychic=59.6; Imprison=20.9; Protect=10.3; Psychic Noise=10.2
+ITEMS: Electric Seed=60.4; Sitrus Berry=23.0; Safety Goggles=5.3; Mental Herb=3.1; Rocky Helmet=2.8
+TEAMMATES: Miraidon=77.2; Calyrex-Ice=48.9; Incineroar=33.7; Landorus=30.5; Iron Hands=21.1; Grimmsnarl=20.6

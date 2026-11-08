@@ -1,0 +1,44 @@
+## Incineroar
+MOVES: Fake Out=99.8; Knock Off=93.8; Flare Blitz=61.4; Parting Shot=55.1; U-turn=44.1; Will-O-Wisp=15.5; Taunt=11.6
+ITEMS: Assault Vest=36.0; Rocky Helmet=33.4; Safety Goggles=14.2; Room Service=6.3; Sitrus Berry=4.3; Covert Cloak=3.4
+TEAMMATES: Miraidon=54.4; Urshifu-Rapid-Strike=33.4; Calyrex-Shadow=31.7; Zamazenta-Crowned=25.4; Rillaboom=25.4; Calyrex-Ice=25.1
+## Miraidon
+MOVES: Electro Drift=99.0; Volt Switch=97.0; Draco Meteor=95.7; Snarl=55.5; Dazzling Gleam=27.7; Protect=9.7
+ITEMS: Choice Scarf=32.5; Choice Specs=29.3; Assault Vest=25.8; Life Orb=5.3; Covert Cloak=3.8
+TEAMMATES: Incineroar=60.8; Calyrex-Ice=37.1; Urshifu-Rapid-Strike=34.7; Volcarona=22.7; Grimmsnarl=22.0; Whimsicott=21.2
+## Calyrex-Shadow
+MOVES: Astral Barrage=100.0; Protect=86.8; Psychic=72.3; Nasty Plot=36.0; Pollen Puff=22.4; Encore=20.6; Draining Kiss=10.3; Expanding Force=8.9
+ITEMS: Life Orb=36.7; Focus Sash=31.5; Choice Specs=14.2; Spell Tag=6.8; Covert Cloak=2.7; Spooky Plate=2.4
+TEAMMATES: Zamazenta-Crowned=52.9; Incineroar=40.4; Rillaboom=39.2; Raging Bolt=27.9; Chien-Pao=25.4; Urshifu-Rapid-Strike=19.3
+## Zamazenta-Crowned
+MOVES: Body Press=100.0; Protect=86.7; Wide Guard=85.9; Heavy Slam=83.7; Imprison=21.6; Iron Head=14.4
+ITEMS: Rusted Shield=100.0
+TEAMMATES: Calyrex-Shadow=58.0; Chien-Pao=49.9; Rillaboom=39.1; Incineroar=35.4; Raging Bolt=24.9; Miraidon=22.3
+## Urshifu-Rapid-Strike
+MOVES: Surging Strikes=100.0; Aqua Jet=86.4; Close Combat=85.5; U-turn=51.5; Detect=38.3; Taunt=14.7; Protect=11.2
+ITEMS: Focus Sash=28.9; Choice Scarf=27.8; Choice Band=22.3; Mystic Water=16.7
+TEAMMATES: Incineroar=52.8; Miraidon=49.1; Calyrex-Ice=39.6; Rillaboom=26.1; Calyrex-Shadow=23.9; Kyogre=23.0
+## Calyrex-Ice
+MOVES: Glacial Lance=100.0; Trick Room=88.2; Protect=82.9; High Horsepower=47.3; Leech Seed=42.2; Imprison=9.6; Close Combat=8.1
+ITEMS: Clear Amulet=44.5; Leftovers=27.5; Never-Melt Ice=12.6; Choice Band=6.7; Sitrus Berry=2.6
+TEAMMATES: Miraidon=53.7; Urshifu-Rapid-Strike=40.6; Incineroar=40.6; Landorus=29.7; Kyogre=21.6; Smeargle=20.5
+## Rillaboom
+MOVES: Fake Out=99.3; Grassy Glide=99.1; U-turn=97.0; Wood Hammer=89.5
+ITEMS: Assault Vest=93.1; Miracle Seed=4.3
+TEAMMATES: Calyrex-Shadow=57.0; Zamazenta-Crowned=51.9; Incineroar=47.0; Urshifu-Rapid-Strike=30.5; Raging Bolt=23.2; Tornadus=22.7
+## Chien-Pao
+MOVES: Protect=90.1; Sucker Punch=88.6; Ice Spinner=53.7; Icicle Crash=45.9; Taunt=23.0; Sacred Sword=21.4; Ice Shard=21.2; Crunch=20.1
+ITEMS: Focus Sash=69.6; Life Orb=17.2; Assault Vest=8.1; Safety Goggles=3.6
+TEAMMATES: Zamazenta-Crowned=81.7; Calyrex-Shadow=45.6; Miraidon=31.6; Incineroar=26.4; Amoonguss=25.9; Raging Bolt=24.4
+## Raging Bolt
+MOVES: Thunderclap=99.6; Thunderbolt=92.3; Protect=86.9; Draco Meteor=56.8; Dragon Pulse=42.2; Snarl=6.6
+ITEMS: Booster Energy=48.1; Life Orb=16.1; Magnet=12.5; Assault Vest=12.1; Zap Plate=7.2
+TEAMMATES: Calyrex-Shadow=62.4; Zamazenta-Crowned=50.8; Rillaboom=35.6; Chien-Pao=30.4; Incineroar=30.2; Smeargle=25.1
+## Whimsicott
+MOVES: Tailwind=99.0; Moonblast=81.8; Encore=76.1; Light Screen=41.2; Fake Tears=34.0; Taunt=22.6; Endeavor=15.8
+ITEMS: Covert Cloak=63.8; Focus Sash=20.3; Ability Shield=7.7; Mental Herb=6.3
+TEAMMATES: Miraidon=55.0; Incineroar=40.2; Calyrex-Shadow=40.0; Urshifu-Rapid-Strike=36.2; Zamazenta-Crowned=33.5; Chien-Pao=23.2
+## Amoonguss
+MOVES: Spore=99.9; Rage Powder=99.8; Protect=93.8; Pollen Puff=80.1; Sludge Bomb=19.9
+ITEMS: Rocky Helmet=77.0; Mental Herb=11.8; Covert Cloak=5.4; Sitrus Berry=2.9
+TEAMMATES: Urshifu-Rapid-Strike=40.6; Incineroar=40.0; Calyrex-Ice=36.7; Chien-Pao=34.2; Zamazenta-Crowned=33.2; Kyogre=29.5

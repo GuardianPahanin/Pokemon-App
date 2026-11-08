@@ -48,6 +48,54 @@
   .hero { display:block; width:192px; height:192px; margin:-36px auto -28px; image-rendering:pixelated; }
   .card .name { text-align:center; }
   details { margin-top:6px; } summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  /* team builder */
+  .btn { padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:15px; cursor:pointer; font-family:inherit; }
+  .btn.primary { background:#7c6cf0; border-color:#7c6cf0; color:#fff; } .btn.danger { color:#d93a3a; border-color:#d93a3a55; }
+  .btn.small { padding:6px 10px; font-size:14px; } .btn.block { display:block; width:100%; margin-top:8px; } .btn.left { text-align:left; }
+  .btn small { opacity:.8; }
+  .tb-row { display:flex; gap:8px; margin:8px 0; } .tb-row .btn { flex:1; }
+  .tb-head { display:flex; align-items:center; gap:8px; margin:4px 0 8px; } .tb-head h2 { font-size:18px; margin:0; }
+  .tb-name { flex:1; font-size:17px; font-weight:700; padding:8px 10px; }
+  .tb-teamcard { display:block; width:100%; text-align:left; color:var(--text); font:inherit; cursor:pointer; }
+  .tb-tc-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .fmt { font-size:12px; padding:2px 8px; border-radius:999px; background:var(--line); } .fmt.champ { background:#7c6cf0; color:#fff; }
+  .tb-minis { display:flex; gap:2px; margin-top:6px; flex-wrap:wrap; } .tb-minis img { width:44px; height:44px; image-rendering:pixelated; }
+  .tb-empty-mini { width:44px; height:44px; border-radius:50%; border:2px dashed var(--line); box-sizing:border-box; transform:scale(.6); }
+  .tb-slots { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .tb-slot { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:6px 4px 8px; color:var(--text); font:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; min-height:150px; }
+  .tb-slot img { width:72px; height:72px; image-rendering:pixelated; margin:-6px 0 -4px; } .tb-slot b { font-size:13px; text-align:center; line-height:1.2; }
+  .tb-slot .badge { font-size:10px; padding:2px 6px; margin:1px; } .tb-slot small { color:var(--muted); font-size:11px; text-align:center; }
+  .tb-slot.empty { justify-content:center; border-style:dashed; color:var(--muted); } .tb-slot.empty span { font-size:30px; }
+  .tb-tabs { display:flex; gap:4px; margin:14px 0 8px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:3px; }
+  .tb-tabs button { flex:1; border:0; background:none; color:var(--text); padding:8px; border-radius:9px; font-size:14px; font-family:inherit; cursor:pointer; }
+  .tb-tabs button.on { background:#7c6cf0; color:#fff; }
+  .tb-sugg { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 10px 6px 4px; margin-top:6px; }
+  .tb-sugg > img { width:56px; height:56px; image-rendering:pixelated; flex:none; } .tb-sugg-body { flex:1; min-width:0; } .tb-sugg-body .badge { font-size:11px; padding:2px 7px; }
+  .tb-sugg .tb-minis { flex:1; margin:0; } .tb-sugg .tb-minis img { width:40px; height:40px; }
+  .tb-checks .ck { padding:8px 10px; border-radius:10px; margin-top:6px; font-size:14px; background:var(--card); border:1px solid var(--line); }
+  .ck.ok { border-color:#4f9a5a88; } .ck.warn { border-color:#f08a3c; } .ck.bad { border-color:#d93a3a; background:#d93a3a18; } .ck.info { border-color:#6890f0; }
+  .tb-def { display:grid; grid-template-columns:1fr 1fr; gap:4px; } .tb-def-cell { display:flex; align-items:center; gap:6px; font-size:13px; padding:3px 6px; border-radius:8px; }
+  .tb-def-cell .badge { min-width:70px; text-align:center; font-size:11px; } .tb-def-cell.hot { background:#d93a3a2a; } .tb-def-cell.warm { background:#f08a3c22; } .tb-def-cell.cool { background:#4f9a5a22; }
+  h4 { margin:16px 0 6px; font-size:15px; }
+  #tbSheet { position:fixed; inset:0; z-index:50; } #tbSheet[hidden] { display:none; }
+  .tb-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .tb-panel { position:absolute; left:0; right:0; bottom:0; max-height:88vh; overflow:auto; background:var(--bg); border-radius:18px 18px 0 0; padding:16px 14px 28px; max-width:560px; margin:0 auto; }
+  .tb-panel h3 { margin:0 0 8px; padding-right:36px; } .tb-x { position:absolute; right:12px; top:12px; border:0; background:var(--line); color:var(--text); width:32px; height:32px; border-radius:50%; font-size:15px; cursor:pointer; }
+  .tb-panel label { display:block; font-weight:700; font-size:14px; margin:14px 0 4px; }
+  .tb-ed-top { display:flex; gap:10px; align-items:center; } .tb-ed-top img { width:96px; height:96px; image-rendering:pixelated; margin:-10px -6px; }
+  .tb-chips { display:flex; flex-wrap:wrap; gap:6px; } .chip { padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:14px; font-family:inherit; cursor:pointer; } .chip.on { background:#7c6cf0; color:#fff; border-color:#7c6cf0; }
+  .pct { font-size:12px; font-weight:700; color:#7c6cf0; } .chip.on .pct { color:#fff; }
+  .tag { font-size:11px; padding:1px 6px; border-radius:6px; background:var(--line); }
+  .tb-move .badge, .tb-li .badge { font-size:11px; padding:2px 7px; min-width:58px; text-align:center; }
+  .tb-search { margin-bottom:6px; } .tb-list { margin:0 -4px; }
+  .tb-group { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:12px 4px 4px; }
+  .tb-li { display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line); color:var(--text); padding:8px 4px; font:inherit; font-size:15px; cursor:pointer; }
+  .tb-li img { width:40px; height:40px; image-rendering:pixelated; flex:none; } .tb-li .li-main { flex:1; min-width:0; } .tb-li small { color:var(--muted); font-size:12px; }
+  .tb-li .badge { font-size:10px; padding:2px 6px; }
+  textarea { width:100%; font:13px/1.4 ui-monospace,Menlo,monospace; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); margin-top:8px; }
+  body.noscroll { overflow:hidden; }
+  #tbToast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:#1c1c1e; color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; z-index:60; pointer-events:none; max-width:90vw; }
+  #tbToast.show { opacity:1; transform:translateX(-50%); }
 </style>
 </head>
 <body>
@@ -56,6 +104,7 @@
   <div class="tabs">
     <button id="tabName" class="on">By Pokémon</button>
     <button id="tabType">By type</button>
+    <button id="tabTeam">Teams</button>
   </div>
   <div id="nameMode">
     <div class="search">
@@ -68,7 +117,8 @@
     <div class="hint">Pick one or two types.</div>
   </div>
   <div id="out"></div>
-  <div class="hint">Covers all 1,025 Pokémon (Gen 1–9 + DLC) plus regional and Rotom forms. Typings verified against PokéAPI; sprites from PokéAPI. Abilities aren't counted — e.g. Levitate makes Ground moves do nothing, and Flash Fire / Water Absorb etc. add immunities.</div>
+  <div id="teamMode" hidden></div>
+  <div class="hint" id="footHint">Covers all 1,025 Pokémon (Gen 1–9 + DLC) plus regional and Rotom forms. Typings verified against PokéAPI; sprites from PokéAPI. Abilities aren't counted — e.g. Levitate makes Ground moves do nothing, and Flash Fire / Water Absorb etc. add immunities.</div>
 </main>
 <script>
 const T = {N:"Normal",R:"Fire",W:"Water",E:"Electric",G:"Grass",I:"Ice",F:"Fighting",P:"Poison",D:"Ground",L:"Flying",Y:"Psychic",B:"Bug",K:"Rock",H:"Ghost",X:"Dragon",A:"Dark",S:"Steel",Z:"Fairy"};
@@ -170,10 +220,19 @@ grid.addEventListener("click", e=>{ const b = e.target.closest("button"); if(!b)
   [...grid.children].forEach(x=>x.classList.toggle("on", sel.includes(x.dataset.t)));
   if(sel.length) render("", sel); else document.getElementById("out").innerHTML = ""; });
 
-const tn = document.getElementById("tabName"), tt = document.getElementById("tabType");
-tn.onclick = ()=>{ tn.classList.add("on"); tt.classList.remove("on"); nameMode.hidden=false; typeMode.hidden=true; document.getElementById("out").innerHTML=""; };
-tt.onclick = ()=>{ tt.classList.add("on"); tn.classList.remove("on"); nameMode.hidden=true; typeMode.hidden=false; document.getElementById("out").innerHTML=""; if(sel.length) render("", sel); };
+const tn = document.getElementById("tabName"), tt = document.getElementById("tabType"), tm = document.getElementById("tabTeam");
+function showTab(which){
+  [[tn,"name"],[tt,"type"],[tm,"team"]].forEach(([b,k])=>b.classList.toggle("on", k===which));
+  nameMode.hidden = which!=="name"; typeMode.hidden = which!=="type"; teamMode.hidden = which!=="team";
+  document.getElementById("out").innerHTML=""; document.getElementById("out").hidden = which==="team"; footHint.hidden = which==="team";
+  if (which==="type" && sel.length) render("", sel);
+  if (which==="team") window.openTeams && window.openTeams();
+  try{ localStorage.setItem("lastTab", which); }catch(e){}
+}
+tn.onclick = ()=>showTab("name"); tt.onclick = ()=>showTab("type"); tm.onclick = ()=>showTab("team");
+try{ const lt = localStorage.getItem("lastTab"); if (lt==="team") setTimeout(()=>showTab("team"),0); }catch(e){}
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}).catch(()=>{});
 </script>
+<script src="builder.js"></script>
 </body>
 </html>
