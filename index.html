@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pokémon Type Checker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#7c6cf0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Type Checker">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root { --bg:#f5f5f7; --card:#fff; --text:#1c1c1e; --muted:#6b6b72; --line:#e3e3e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111114; --card:#1c1c20; --text:#f2f2f5; --muted:#9a9aa3; --line:#2c2c32; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:560px; margin:0 auto; padding:16px 14px 40px; }
+  h1 { font-size:22px; margin:6px 0 12px; }
+  .search { position:relative; }
+  input { width:100%; font-size:17px; padding:13px 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--text); outline:none; }
+  input:focus { border-color:#7c6cf0; }
+  .sugg { position:absolute; left:0; right:0; top:100%; margin-top:4px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; z-index:5; box-shadow:0 8px 24px rgba(0,0,0,.12); }
+  .sugg button { display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; padding:11px 14px; border:0; border-bottom:1px solid var(--line); background:none; color:var(--text); font-size:16px; cursor:pointer; gap:8px; }
+  .sugg button:last-child { border-bottom:0; }
+  .sugg button:hover, .sugg button.active { background:rgba(124,108,240,.12); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-top:14px; }
+  .name { font-size:24px; font-weight:700; margin:0 0 8px; }
+  .badge { display:inline-block; padding:4px 10px; border-radius:999px; color:#fff; font-size:13px; font-weight:600; margin:2px 4px 2px 0; text-shadow:0 1px 1px rgba(0,0,0,.25); }
+  .row { margin-top:14px; }
+  .row h3 { font-size:14px; margin:0 0 6px; display:flex; gap:8px; align-items:center; }
+  .mult { font-weight:800; min-width:34px; padding:2px 6px; border-radius:6px; text-align:center; font-size:13px; }
+  .m4 { background:#d93a3a; color:#fff; } .m2 { background:#f08a3c; color:#fff; }
+  .m1 { background:var(--line); color:var(--text); } .mh { background:#4f9a5a; color:#fff; }
+  .mq { background:#2f7a4a; color:#fff; } .m0 { background:#555; color:#fff; }
+  .none { color:var(--muted); font-size:14px; }
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:15px; cursor:pointer; }
+  .tabs button.on { background:#7c6cf0; color:#fff; border-color:#7c6cf0; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .grid button { padding:9px 4px; border-radius:10px; border:2px solid transparent; color:#fff; font-weight:600; font-size:14px; cursor:pointer; opacity:.55; }
+  .grid button.on { opacity:1; border-color:var(--text); }
+  .hint { color:var(--muted); font-size:13px; margin-top:10px; line-height:1.4; }
+  details { margin-top:6px; } summary { cursor:pointer; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pokémon Type Checker</h1>
+  <div class="tabs">
+    <button id="tabName" class="on">By Pokémon</button>
+    <button id="tabType">By type</button>
+  </div>
+  <div id="nameMode">
+    <div class="search">
+      <input id="q" placeholder="Type a Pokémon… e.g. Gengar" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="sugg" class="sugg" hidden></div>
+    </div>
+  </div>
+  <div id="typeMode" hidden>
+    <div class="grid" id="grid"></div>
+    <div class="hint">Pick one or two types.</div>
+  </div>
+  <div id="out"></div>
+  <div class="hint">Covers Gen 1–9 (incl. DLC) plus regional and Rotom forms, using current-gen typings. Abilities aren't counted — e.g. Levitate makes Ground moves do nothing, and Flash Fire / Water Absorb etc. add immunities.</div>
+</main>
+<script>
+const T = {N:"Normal",R:"Fire",W:"Water",E:"Electric",G:"Grass",I:"Ice",F:"Fighting",P:"Poison",D:"Ground",L:"Flying",Y:"Psychic",B:"Bug",K:"Rock",H:"Ghost",X:"Dragon",A:"Dark",S:"Steel",Z:"Fairy"};
+const COL = {Normal:"#9a9a6e",Fire:"#ee7f30",Water:"#6890f0",Electric:"#e0b820",Grass:"#6dbf48",Ice:"#68c8c8",Fighting:"#c03028",Poison:"#a040a0",Ground:"#d0a850",Flying:"#9a85ee",Psychic:"#f85888",Bug:"#a0b020",Rock:"#b8a038",Ghost:"#705898",Dragon:"#7038f8",Dark:"#705848",Steel:"#a8a8c0",Fairy:"#e389b9"};
+const TYPES = Object.values(T);
+// attacking type -> [super effective vs, not very effective vs, no effect vs]
+const CHART = {
+  Normal:[[],["Rock","Steel"],["Ghost"]],
+  Fire:[["Grass","Ice","Bug","Steel"],["Fire","Water","Rock","Dragon"],[]],
+  Water:[["Fire","Ground","Rock"],["Water","Grass","Dragon"],[]],
+  Electric:[["Water","Flying"],["Electric","Grass","Dragon"],["Ground"]],
+  Grass:[["Water","Ground","Rock"],["Fire","Grass","Poison","Flying","Bug","Dragon","Steel"],[]],
+  Ice:[["Grass","Ground","Flying","Dragon"],["Fire","Water","Ice","Steel"],[]],
+  Fighting:[["Normal","Ice","Rock","Dark","Steel"],["Poison","Flying","Psychic","Bug","Fairy"],["Ghost"]],
+  Poison:[["Grass","Fairy"],["Poison","Ground","Rock","Ghost"],["Steel"]],
+  Ground:[["Fire","Electric","Poison","Rock","Steel"],["Grass","Bug"],["Flying"]],
+  Flying:[["Grass","Fighting","Bug"],["Electric","Rock","Steel"],[]],
+  Psychic:[["Fighting","Poison"],["Psychic","Steel"],["Dark"]],
+  Bug:[["Grass","Psychic","Dark"],["Fire","Fighting","Poison","Flying","Ghost","Steel","Fairy"],[]],
+  Rock:[["Fire","Ice","Flying","Bug"],["Fighting","Ground","Steel"],[]],
+  Ghost:[["Psychic","Ghost"],["Dark"],["Normal"]],
+  Dragon:[["Dragon"],["Steel"],["Fairy"]],
+  Dark:[["Psychic","Ghost"],["Fighting","Dark","Fairy"],[]],
+  Steel:[["Ice","Rock","Fairy"],["Fire","Water","Electric","Steel"],[]],
+  Fairy:[["Fighting","Dragon","Dark"],["Fire","Poison","Steel"],[]]
+};
+function eff(atk, def){ const [se,nve,im]=CHART[atk]; return im.includes(def)?0:se.includes(def)?2:nve.includes(def)?0.5:1; }
+
+const RAW = `Bulbasaur|GP,Ivysaur|GP,Venusaur|GP,Charmander|R,Charmeleon|R,Charizard|RL,Squirtle|W,Wartortle|W,Blastoise|W,Caterpie|B,Metapod|B,Butterfree|BL,Weedle|BP,Kakuna|BP,Beedrill|BP,Pidgey|NL,Pidgeotto|NL,Pidgeot|NL,Rattata|N,Raticate|N,Spearow|NL,Fearow|NL,Ekans|P,Arbok|P,Pikachu|E,Raichu|E,Sandshrew|D,Sandslash|D,Nidoran♀|P,Nidorina|P,Nidoqueen|PD,Nidoran♂|P,Nidorino|P,Nidoking|PD,Clefairy|Z,Clefable|Z,Vulpix|R,Ninetales|R,Jigglypuff|NZ,Wigglytuff|NZ,Zubat|PL,Golbat|PL,Oddish|GP,Gloom|GP,Vileplume|GP,Paras|BG,Parasect|BG,Venonat|BP,Venomoth|BP,Diglett|D,Dugtrio|D,Meowth|N,Persian|N,Psyduck|W,Golduck|W,Mankey|F,Primeape|F,Growlithe|R,Arcanine|R,Poliwag|W,Poliwhirl|W,Poliwrath|WF,Abra|Y,Kadabra|Y,Alakazam|Y,Machop|F,Machoke|F,Machamp|F,Bellsprout|GP,Weepinbell|GP,Victreebel|GP,Tentacool|WP,Tentacruel|WP,Geodude|KD,Graveler|KD,Golem|KD,Ponyta|R,Rapidash|R,Slowpoke|WY,Slowbro|WY,Magnemite|ES,Magneton|ES,Farfetch'd|NL,Doduo|NL,Dodrio|NL,Seel|W,Dewgong|WI,Grimer|P,Muk|P,Shellder|W,Cloyster|WI,Gastly|HP,Haunter|HP,Gengar|HP,Onix|KD,Drowzee|Y,Hypno|Y,Krabby|W,Kingler|W,Voltorb|E,Electrode|E,Exeggcute|GY,Exeggutor|GY,Cubone|D,Marowak|D,Hitmonlee|F,Hitmonchan|F,Lickitung|N,Koffing|P,Weezing|P,Rhyhorn|DK,Rhydon|DK,Chansey|N,Tangela|G,Kangaskhan|N,Horsea|W,Seadra|W,Goldeen|W,Seaking|W,Staryu|W,Starmie|WY,Mr. Mime|YZ,Scyther|BL,Jynx|IY,Electabuzz|E,Magmar|R,Pinsir|B,Tauros|N,Magikarp|W,Gyarados|WL,Lapras|WI,Ditto|N,Eevee|N,Vaporeon|W,Jolteon|E,Flareon|R,Porygon|N,Omanyte|KW,Omastar|KW,Kabuto|KW,Kabutops|KW,Aerodactyl|KL,Snorlax|N,Articuno|IL,Zapdos|EL,Moltres|RL,Dratini|X,Dragonair|X,Dragonite|XL,Mewtwo|Y,Mew|Y,
+Chikorita|G,Bayleef|G,Meganium|G,Cyndaquil|R,Quilava|R,Typhlosion|R,Totodile|W,Croconaw|W,Feraligatr|W,Sentret|N,Furret|N,Hoothoot|NL,Noctowl|NL,Ledyba|BL,Ledian|BL,Spinarak|BP,Ariados|BP,Crobat|PL,Chinchou|WE,Lanturn|WE,Pichu|E,Cleffa|Z,Igglybuff|NZ,Togepi|Z,Togetic|ZL,Natu|YL,Xatu|YL,Mareep|E,Flaaffy|E,Ampharos|E,Bellossom|G,Marill|WZ,Azumarill|WZ,Sudowoodo|K,Politoed|W,Hoppip|GL,Skiploom|GL,Jumpluff|GL,Aipom|N,Sunkern|G,Sunflora|G,Yanma|BL,Wooper|WD,Quagsire|WD,Espeon|Y,Umbreon|A,Murkrow|AL,Slowking|WY,Misdreavus|H,Unown|Y,Wobbuffet|Y,Girafarig|NY,Pineco|B,Forretress|BS,Dunsparce|N,Gligar|DL,Steelix|SD,Snubbull|Z,Granbull|Z,Qwilfish|WP,Scizor|BS,Shuckle|BK,Heracross|BF,Sneasel|AI,Teddiursa|N,Ursaring|N,Slugma|R,Magcargo|RK,Swinub|ID,Piloswine|ID,Corsola|WK,Remoraid|W,Octillery|W,Delibird|IL,Mantine|WL,Skarmory|SL,Houndour|AR,Houndoom|AR,Kingdra|WX,Phanpy|D,Donphan|D,Porygon2|N,Stantler|N,Smeargle|N,Tyrogue|F,Hitmontop|F,Smoochum|IY,Elekid|E,Magby|R,Miltank|N,Blissey|N,Raikou|E,Entei|R,Suicune|W,Larvitar|KD,Pupitar|KD,Tyranitar|KA,Lugia|YL,Ho-Oh|RL,Celebi|YG,
+Treecko|G,Grovyle|G,Sceptile|G,Torchic|R,Combusken|RF,Blaziken|RF,Mudkip|W,Marshtomp|WD,Swampert|WD,Poochyena|A,Mightyena|A,Zigzagoon|N,Linoone|N,Wurmple|B,Silcoon|B,Beautifly|BL,Cascoon|B,Dustox|BP,Lotad|WG,Lombre|WG,Ludicolo|WG,Seedot|G,Nuzleaf|GA,Shiftry|GA,Taillow|NL,Swellow|NL,Wingull|WL,Pelipper|WL,Ralts|YZ,Kirlia|YZ,Gardevoir|YZ,Surskit|BW,Masquerain|BL,Shroomish|G,Breloom|GF,Slakoth|N,Vigoroth|N,Slaking|N,Nincada|BD,Ninjask|BL,Shedinja|BH,Whismur|N,Loudred|N,Exploud|N,Makuhita|F,Hariyama|F,Azurill|NZ,Nosepass|K,Skitty|N,Delcatty|N,Sableye|AH,Mawile|SZ,Aron|SK,Lairon|SK,Aggron|SK,Meditite|FY,Medicham|FY,Electrike|E,Manectric|E,Plusle|E,Minun|E,Volbeat|B,Illumise|B,Roselia|GP,Gulpin|P,Swalot|P,Carvanha|WA,Sharpedo|WA,Wailmer|W,Wailord|W,Numel|RD,Camerupt|RD,Torkoal|R,Spoink|Y,Grumpig|Y,Spinda|N,Trapinch|D,Vibrava|DX,Flygon|DX,Cacnea|G,Cacturne|GA,Swablu|NL,Altaria|XL,Zangoose|N,Seviper|P,Lunatone|KY,Solrock|KY,Barboach|WD,Whiscash|WD,Corphish|W,Crawdaunt|WA,Baltoy|DY,Claydol|DY,Lileep|KG,Cradily|KG,Anorith|KB,Armaldo|KB,Feebas|W,Milotic|W,Castform|N,Kecleon|N,Shuppet|H,Banette|H,Duskull|H,Dusclops|H,Tropius|GL,Chimecho|Y,Absol|A,Wynaut|Y,Snorunt|I,Glalie|I,Spheal|IW,Sealeo|IW,Walrein|IW,Clamperl|W,Huntail|W,Gorebyss|W,Relicanth|WK,Luvdisc|W,Bagon|X,Shelgon|X,Salamence|XL,Beldum|SY,Metang|SY,Metagross|SY,Regirock|K,Regice|I,Registeel|S,Latias|XY,Latios|XY,Kyogre|W,Groudon|D,Rayquaza|XL,Jirachi|SY,Deoxys|Y,
+Turtwig|G,Grotle|G,Torterra|GD,Chimchar|R,Monferno|RF,Infernape|RF,Piplup|W,Prinplup|W,Empoleon|WS,Starly|NL,Staravia|NL,Staraptor|NL,Bidoof|N,Bibarel|NW,Kricketot|B,Kricketune|B,Shinx|E,Luxio|E,Luxray|E,Budew|GP,Roserade|GP,Cranidos|K,Rampardos|K,Shieldon|KS,Bastiodon|KS,Burmy|B,Wormadam|BG,Mothim|BL,Combee|BL,Vespiquen|BL,Pachirisu|E,Buizel|W,Floatzel|W,Cherubi|G,Cherrim|G,Shellos|W,Gastrodon|WD,Ambipom|N,Drifloon|HL,Drifblim|HL,Buneary|N,Lopunny|N,Mismagius|H,Honchkrow|AL,Glameow|N,Purugly|N,Chingling|Y,Stunky|PA,Skuntank|PA,Bronzor|SY,Bronzong|SY,Bonsly|K,Mime Jr.|YZ,Happiny|N,Chatot|NL,Spiritomb|HA,Gible|XD,Gabite|XD,Garchomp|XD,Munchlax|N,Riolu|F,Lucario|FS,Hippopotas|D,Hippowdon|D,Skorupi|PB,Drapion|PA,Croagunk|PF,Toxicroak|PF,Carnivine|G,Finneon|W,Lumineon|W,Mantyke|WL,Snover|GI,Abomasnow|GI,Weavile|AI,Magnezone|ES,Lickilicky|N,Rhyperior|DK,Tangrowth|G,Electivire|E,Magmortar|R,Togekiss|ZL,Yanmega|BL,Leafeon|G,Glaceon|I,Gliscor|DL,Mamoswine|ID,Porygon-Z|N,Gallade|YF,Probopass|KS,Dusknoir|H,Froslass|IH,Rotom|EH,Uxie|Y,Mesprit|Y,Azelf|Y,Dialga|SX,Palkia|WX,Heatran|RS,Regigigas|N,Giratina|HX,Cresselia|Y,Phione|W,Manaphy|W,Darkrai|A,Shaymin|G,Arceus|N,
+Victini|YR,Snivy|G,Servine|G,Serperior|G,Tepig|R,Pignite|RF,Emboar|RF,Oshawott|W,Dewott|W,Samurott|W,Patrat|N,Watchog|N,Lillipup|N,Herdier|N,Stoutland|N,Purrloin|A,Liepard|A,Pansage|G,Simisage|G,Pansear|R,Simisear|R,Panpour|W,Simipour|W,Munna|Y,Musharna|Y,Pidove|NL,Tranquill|NL,Unfezant|NL,Blitzle|E,Zebstrika|E,Roggenrola|K,Boldore|K,Gigalith|K,Woobat|YL,Swoobat|YL,Drilbur|D,Excadrill|DS,Audino|N,Timburr|F,Gurdurr|F,Conkeldurr|F,Tympole|W,Palpitoad|WD,Seismitoad|WD,Throh|F,Sawk|F,Sewaddle|BG,Swadloon|BG,Leavanny|BG,Venipede|BP,Whirlipede|BP,Scolipede|BP,Cottonee|GZ,Whimsicott|GZ,Petilil|G,Lilligant|G,Basculin|W,Sandile|DA,Krokorok|DA,Krookodile|DA,Darumaka|R,Darmanitan|R,Maractus|G,Dwebble|BK,Crustle|BK,Scraggy|AF,Scrafty|AF,Sigilyph|YL,Yamask|H,Cofagrigus|H,Tirtouga|WK,Carracosta|WK,Archen|KL,Archeops|KL,Trubbish|P,Garbodor|P,Zorua|A,Zoroark|A,Minccino|N,Cinccino|N,Gothita|Y,Gothorita|Y,Gothitelle|Y,Solosis|Y,Duosion|Y,Reuniclus|Y,Ducklett|WL,Swanna|WL,Vanillite|I,Vanillish|I,Vanilluxe|I,Deerling|NG,Sawsbuck|NG,Emolga|EL,Karrablast|B,Escavalier|BS,Foongus|GP,Amoonguss|GP,Frillish|WH,Jellicent|WH,Alomomola|W,Joltik|BE,Galvantula|BE,Ferroseed|GS,Ferrothorn|GS,Klink|S,Klang|S,Klinklang|S,Tynamo|E,Eelektrik|E,Eelektross|E,Elgyem|Y,Beheeyem|Y,Litwick|HR,Lampent|HR,Chandelure|HR,Axew|X,Fraxure|X,Haxorus|X,Cubchoo|I,Beartic|I,Cryogonal|I,Shelmet|B,Accelgor|B,Stunfisk|DE,Mienfoo|F,Mienshao|F,Druddigon|X,Golett|DH,Golurk|DH,Pawniard|AS,Bisharp|AS,Bouffalant|N,Rufflet|NL,Braviary|NL,Vullaby|AL,Mandibuzz|AL,Heatmor|R,Durant|BS,Deino|AX,Zweilous|AX,Hydreigon|AX,Larvesta|BR,Volcarona|BR,Cobalion|SF,Terrakion|KF,Virizion|GF,Tornadus|L,Thundurus|EL,Reshiram|XR,Zekrom|XE,Landorus|DL,Kyurem|XI,Keldeo|WF,Meloetta|NY,Genesect|BS,
+Chespin|G,Quilladin|G,Chesnaught|GF,Fennekin|R,Braixen|R,Delphox|RY,Froakie|W,Frogadier|W,Greninja|WA,Bunnelby|N,Diggersby|ND,Fletchling|NL,Fletchinder|RL,Talonflame|RL,Scatterbug|B,Spewpa|B,Vivillon|BL,Litleo|RN,Pyroar|RN,Flabébé|Z,Floette|Z,Florges|Z,Skiddo|G,Gogoat|G,Pancham|F,Pangoro|FA,Furfrou|N,Espurr|Y,Meowstic|Y,Honedge|SH,Doublade|SH,Aegislash|SH,Spritzee|Z,Aromatisse|Z,Swirlix|Z,Slurpuff|Z,Inkay|AY,Malamar|AY,Binacle|KW,Barbaracle|KW,Skrelp|PW,Dragalge|PX,Clauncher|W,Clawitzer|W,Helioptile|EN,Heliolisk|EN,Tyrunt|KX,Tyrantrum|KX,Amaura|KI,Aurorus|KI,Sylveon|Z,Hawlucha|FL,Dedenne|EZ,Carbink|KZ,Goomy|X,Sliggoo|X,Goodra|X,Klefki|SZ,Phantump|HG,Trevenant|HG,Pumpkaboo|HG,Gourgeist|HG,Bergmite|I,Avalugg|I,Noibat|LX,Noivern|LX,Xerneas|Z,Yveltal|AL,Zygarde|XD,Diancie|KZ,Hoopa|YH,Volcanion|RW,
+Rowlet|GL,Dartrix|GL,Decidueye|GH,Litten|R,Torracat|R,Incineroar|RA,Popplio|W,Brionne|W,Primarina|WZ,Pikipek|NL,Trumbeak|NL,Toucannon|NL,Yungoos|N,Gumshoos|N,Grubbin|B,Charjabug|BE,Vikavolt|BE,Crabrawler|F,Crabominable|FI,Oricorio|RL,Cutiefly|BZ,Ribombee|BZ,Rockruff|K,Lycanroc|K,Wishiwashi|W,Mareanie|PW,Toxapex|PW,Mudbray|D,Mudsdale|D,Dewpider|WB,Araquanid|WB,Fomantis|G,Lurantis|G,Morelull|GZ,Shiinotic|GZ,Salandit|PR,Salazzle|PR,Stufful|NF,Bewear|NF,Bounsweet|G,Steenee|G,Tsareena|G,Comfey|Z,Oranguru|NY,Passimian|F,Wimpod|BW,Golisopod|BW,Sandygast|HD,Palossand|HD,Pyukumuku|W,Type: Null|N,Silvally|N,Minior|KL,Komala|N,Turtonator|RX,Togedemaru|ES,Mimikyu|HZ,Bruxish|WY,Drampa|NX,Dhelmise|HG,Jangmo-o|X,Hakamo-o|XF,Kommo-o|XF,Tapu Koko|EZ,Tapu Lele|YZ,Tapu Bulu|GZ,Tapu Fini|WZ,Cosmog|Y,Cosmoem|Y,Solgaleo|YS,Lunala|YH,Nihilego|KP,Buzzwole|BF,Pheromosa|BF,Xurkitree|E,Celesteela|SL,Kartana|GS,Guzzlord|AX,Necrozma|Y,Magearna|SZ,Marshadow|FH,Poipole|P,Naganadel|PX,Stakataka|KS,Blacephalon|RH,Zeraora|E,Meltan|S,Melmetal|S,
+Grookey|G,Thwackey|G,Rillaboom|G,Scorbunny|R,Raboot|R,Cinderace|R,Sobble|W,Drizzile|W,Inteleon|W,Skwovet|N,Greedent|N,Rookidee|L,Corvisquire|L,Corviknight|LS,Blipbug|B,Dottler|BY,Orbeetle|BY,Nickit|A,Thievul|A,Gossifleur|G,Eldegoss|G,Wooloo|N,Dubwool|N,Chewtle|W,Drednaw|WK,Yamper|E,Boltund|E,Rolycoly|K,Carkol|KR,Coalossal|KR,Applin|GX,Flapple|GX,Appletun|GX,Silicobra|D,Sandaconda|D,Cramorant|LW,Arrokuda|W,Barraskewda|W,Toxel|EP,Toxtricity|EP,Sizzlipede|RB,Centiskorch|RB,Clobbopus|F,Grapploct|F,Sinistea|H,Polteageist|H,Hatenna|Y,Hattrem|Y,Hatterene|YZ,Impidimp|AZ,Morgrem|AZ,Grimmsnarl|AZ,Obstagoon|AN,Perrserker|S,Cursola|H,Sirfetch'd|F,Mr. Rime|IY,Runerigus|DH,Milcery|Z,Alcremie|Z,Falinks|F,Pincurchin|E,Snom|IB,Frosmoth|IB,Stonjourner|K,Eiscue|I,Indeedee|YN,Morpeko|EA,Cufant|S,Copperajah|S,Dracozolt|EX,Arctozolt|EI,Dracovish|WX,Arctovish|WI,Duraludon|SX,Dreepy|XH,Drakloak|XH,Dragapult|XH,Zacian|Z,Zamazenta|F,Eternatus|PX,Kubfu|F,Urshifu (Single Strike)|FA,Urshifu (Rapid Strike)|FW,Zarude|AG,Regieleki|E,Regidrago|X,Glastrier|I,Spectrier|H,Calyrex|YG,Wyrdeer|NY,Kleavor|BK,Ursaluna|DN,Basculegion|WH,Sneasler|FP,Overqwil|AP,Enamorus|ZL,
+Sprigatito|G,Floragato|G,Meowscarada|GA,Fuecoco|R,Crocalor|R,Skeledirge|RH,Quaxly|W,Quaxwell|W,Quaquaval|WF,Lechonk|N,Oinkologne|N,Tarountula|B,Spidops|B,Nymble|B,Lokix|BA,Pawmi|E,Pawmo|EF,Pawmot|EF,Tandemaus|N,Maushold|N,Fidough|Z,Dachsbun|Z,Smoliv|GN,Dolliv|GN,Arboliva|GN,Squawkabilly|NL,Nacli|K,Naclstack|K,Garganacl|K,Charcadet|R,Armarouge|RY,Ceruledge|RH,Tadbulb|E,Bellibolt|E,Wattrel|EL,Kilowattrel|EL,Maschiff|A,Mabosstiff|A,Shroodle|PN,Grafaiai|PN,Bramblin|GH,Brambleghast|GH,Toedscool|DG,Toedscruel|DG,Klawf|K,Capsakid|G,Scovillain|GR,Rellor|B,Rabsca|BY,Flittle|Y,Espathra|Y,Tinkatink|ZS,Tinkatuff|ZS,Tinkaton|ZS,Wiglett|W,Wugtrio|W,Bombirdier|LA,Finizen|W,Palafin|W,Varoom|SP,Revavroom|SP,Cyclizar|XN,Orthworm|S,Glimmet|KP,Glimmora|KP,Greavard|H,Houndstone|H,Flamigo|LF,Cetoddle|I,Cetitan|I,Veluza|WY,Dondozo|W,Tatsugiri|XW,Annihilape|FH,Clodsire|PD,Farigiraf|NY,Dudunsparce|N,Kingambit|AS,Great Tusk|DF,Scream Tail|ZY,Brute Bonnet|GA,Flutter Mane|HZ,Slither Wing|BF,Sandy Shocks|ED,Iron Treads|DS,Iron Bundle|IW,Iron Hands|FE,Iron Jugulis|AL,Iron Moth|RP,Iron Thorns|KE,Frigibax|XI,Arctibax|XI,Baxcalibur|XI,Gimmighoul|H,Gholdengo|SH,Wo-Chien|AG,Chien-Pao|AI,Ting-Lu|AD,Chi-Yu|AR,Roaring Moon|XA,Iron Valiant|ZF,Koraidon|FX,Miraidon|EX,Walking Wake|WX,Iron Leaves|GY,Dipplin|GX,Poltchageist|GH,Sinistcha|GH,Okidogi|PF,Munkidori|PY,Fezandipiti|PZ,Ogerpon|G,Archaludon|SX,Hydrapple|GX,Gouging Fire|RX,Raging Bolt|EX,Iron Boulder|KY,Iron Crown|SY,Terapagos|N,Pecharunt|PH,
+Alolan Rattata|AN,Alolan Raticate|AN,Alolan Raichu|EY,Alolan Sandshrew|IS,Alolan Sandslash|IS,Alolan Vulpix|I,Alolan Ninetales|IZ,Alolan Diglett|DS,Alolan Dugtrio|DS,Alolan Meowth|A,Alolan Persian|A,Alolan Geodude|KE,Alolan Graveler|KE,Alolan Golem|KE,Alolan Grimer|PA,Alolan Muk|PA,Alolan Exeggutor|GX,Alolan Marowak|RH,Galarian Meowth|S,Galarian Ponyta|Y,Galarian Rapidash|YZ,Galarian Slowpoke|Y,Galarian Slowbro|PY,Galarian Farfetch'd|F,Galarian Weezing|PZ,Galarian Mr. Mime|IY,Galarian Articuno|YL,Galarian Zapdos|FL,Galarian Moltres|AL,Galarian Slowking|PY,Galarian Corsola|H,Galarian Zigzagoon|AN,Galarian Linoone|AN,Galarian Darumaka|I,Galarian Darmanitan|I,Galarian Yamask|DH,Galarian Stunfisk|DS,Hisuian Growlithe|RK,Hisuian Arcanine|RK,Hisuian Voltorb|EG,Hisuian Electrode|EG,Hisuian Typhlosion|RH,Hisuian Qwilfish|AP,Hisuian Sneasel|FP,Hisuian Samurott|WA,Hisuian Lilligant|GF,Hisuian Zorua|NH,Hisuian Zoroark|NH,Hisuian Braviary|YL,Hisuian Sliggoo|SX,Hisuian Goodra|SX,Hisuian Avalugg|IK,Hisuian Decidueye|GF,Paldean Wooper|PD,Paldean Tauros (Combat)|F,Paldean Tauros (Blaze)|FR,Paldean Tauros (Aqua)|FW,Heat Rotom|ER,Wash Rotom|EW,Frost Rotom|EI,Fan Rotom|EL,Mow Rotom|EG`;
+
+const DEX = RAW.split(",").map(s=>s.trim()).filter(Boolean).map(s=>{ const [n,t]=s.split("|"); return {n, t:[...t].map(c=>T[c])}; });
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9♀♂]/g,"");
+
+function badge(t){ return `<span class="badge" style="background:${COL[t]}">${t}</span>`; }
+function render(title, types){
+  const groups = {4:[],2:[],1:[],0.5:[],0.25:[],0:[]};
+  TYPES.forEach(a=>{ const m = types.reduce((x,d)=>x*eff(a,d),1); groups[m].push(a); });
+  const rows = [[4,"m4","4×","Very weak to"],[2,"m2","2×","Weak to"],[0.5,"mh","½×","Resists"],[0.25,"mq","¼×","Strongly resists"],[0,"m0","0×","Immune to"]];
+  let h = `<div class="card">${title?`<div class="name">${title}</div>`:""}<div>${types.map(badge).join("")}</div>`;
+  rows.forEach(([k,c,l,lab])=>{ if(!groups[k].length && (k===4||k===0.25)) return;
+    h += `<div class="row"><h3><span class="mult ${c}">${l}</span>${lab}</h3>${groups[k].length?groups[k].map(badge).join(""):'<span class="none">None</span>'}</div>`; });
+  h += `<details><summary>Neutral (1×) — ${groups[1].length} types</summary><div style="margin-top:6px">${groups[1].map(badge).join("")}</div></details></div>`;
+  document.getElementById("out").innerHTML = h;
+}
+
+const q = document.getElementById("q"), sugg = document.getElementById("sugg");
+let matches = [], active = 0;
+function showSugg(){
+  const v = norm(q.value); if(!v){ sugg.hidden = true; return; }
+  const starts = DEX.filter(p=>norm(p.n).startsWith(v)), has = DEX.filter(p=>!norm(p.n).startsWith(v) && norm(p.n).includes(v));
+  matches = starts.concat(has).slice(0,8); active = 0;
+  if(!matches.length){ sugg.innerHTML = `<button disabled>No match</button>`; sugg.hidden = false; return; }
+  sugg.innerHTML = matches.map((p,i)=>`<button data-i="${i}" class="${i===0?'active':''}"><span>${p.n}</span><span>${p.t.map(badge).join("")}</span></button>`).join("");
+  sugg.hidden = false;
+}
+function pick(p){ q.value = p.n; sugg.hidden = true; q.blur(); render(p.n, p.t); }
+q.addEventListener("input", showSugg);
+q.addEventListener("keydown", e=>{
+  if(sugg.hidden || !matches.length) return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); active=(active+(e.key==="ArrowDown"?1:matches.length-1))%matches.length;
+    [...sugg.children].forEach((b,i)=>b.classList.toggle("active",i===active)); }
+  if(e.key==="Enter"){ e.preventDefault(); pick(matches[active]); }
+});
+sugg.addEventListener("pointerdown", e=>{ const b = e.target.closest("button[data-i]"); if(b){ e.preventDefault(); pick(matches[+b.dataset.i]); } });
+document.addEventListener("click", e=>{ if(!e.target.closest(".search")) sugg.hidden = true; });
+
+// type picker
+const grid = document.getElementById("grid"); let sel = [];
+grid.innerHTML = TYPES.map(t=>`<button data-t="${t}" style="background:${COL[t]}">${t}</button>`).join("");
+grid.addEventListener("click", e=>{ const b = e.target.closest("button"); if(!b) return; const t = b.dataset.t;
+  if(sel.includes(t)) sel = sel.filter(x=>x!==t); else { sel.push(t); if(sel.length>2) sel.shift(); }
+  [...grid.children].forEach(x=>x.classList.toggle("on", sel.includes(x.dataset.t)));
+  if(sel.length) render("", sel); else document.getElementById("out").innerHTML = ""; });
+
+const tn = document.getElementById("tabName"), tt = document.getElementById("tabType");
+tn.onclick = ()=>{ tn.classList.add("on"); tt.classList.remove("on"); nameMode.hidden=false; typeMode.hidden=true; document.getElementById("out").innerHTML=""; };
+tt.onclick = ()=>{ tt.classList.add("on"); tn.classList.remove("on"); nameMode.hidden=true; typeMode.hidden=false; document.getElementById("out").innerHTML=""; if(sel.length) render("", sel); };
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
