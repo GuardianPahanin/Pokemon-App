@@ -138,6 +138,13 @@ function defenseTable(t){
     return {type:a, weak, res, imm};
   });
 }
+/* Partner filters — add new ones to this list */
+const FILTERS = [
+  {id:"nolegend", label:"No legendaries", keep: id => !S(id).lg},
+];
+let activeFilters = (() => { try { return JSON.parse(localStorage.getItem("partner-filters")) || []; } catch(e){ return []; } })();
+const saveFilters = () => { try { localStorage.setItem("partner-filters", JSON.stringify(activeFilters)); } catch(e){} };
+const passesFilters = id => FILTERS.every(f => !activeFilters.includes(f.id) || f.keep(id));
 function partnerSuggestions(t, limit=10){
   const mons = t.mons.filter(Boolean); const have = new Set(mons.map(m => S(m.s).nm));
   const restrictedCount = mons.filter(m => S(m.s).r).length;
@@ -145,10 +152,10 @@ function partnerSuggestions(t, limit=10){
   const pool = new Set(meta(t).usage.map(u=>u[0]).filter(id => inDex(t,id)));
   for (const m of mons){ const s = setOf(t, m.s); if (s) s.tm.forEach(x => inDex(t,x[0]) && pool.add(x[0])); }
   const metaPool = pool.size >= 12;
-  if (!metaPool) legalSpecies(t).forEach(id => { if (!S(id).nfe) pool.add(id); });
+  if ([...pool].filter(passesFilters).length < 12) legalSpecies(t).forEach(id => { if (!S(id).nfe) pool.add(id); });
   const out = [];
   for (const c of pool){
-    if (!fmt(t).learn[c] || have.has(S(c).nm) || !inDex(t,c)) continue;
+    if (!fmt(t).learn[c] || have.has(S(c).nm) || !inDex(t,c) || !passesFilters(c)) continue;
     if (S(c).r && restrictedCount >= fmt(t).maxRestricted) continue;
     let score = 0; const why = [];
     let pair = 0, best = null;
@@ -293,7 +300,7 @@ function renderTeam(){
       $("#tbDel").onclick = () => { $("#tbDel").outerHTML = `<button class="btn block danger" id="tbDel2">Tap again to delete</button>`; $("#tbDel2").onclick = () => { teams = teams.filter(x=>x!==t); save(); closeSheet(); curTeam = null; render(); }; };
     });
   root().querySelectorAll("[data-slot]").forEach(b => b.onclick = () => { curSlot = +b.dataset.slot; mons[curSlot] ? slotEditor() : speciesPicker(sid => { mons[curSlot] = makeMon(t, sid, null, curSlot); save(); render(); slotEditor(); }); });
-  const auto = $("#tbAuto"); if (auto) auto.onclick = () => { autoFill(t); render(); toast("Filled with the best-scoring partners"); };
+  const auto = $("#tbAuto"); if (auto) auto.onclick = () => { autoFill(t); render(); toast(activeFilters.length ? "Filled using your partner filters" : "Filled with the best-scoring partners"); };
   root().querySelectorAll("[data-ct]").forEach(b => b.onclick = () => { coachTab = b.dataset.ct; renderTeam(); });
   renderCoach();
 }
@@ -303,9 +310,12 @@ function renderCoach(){
   if (coachTab === "partners"){
     const full = mons.length >= 6;
     const ps = partnerSuggestions(t, 10);
-    let h = `<div class="hint">${mons.length ? "Best partners for your current team — based on how often they're paired in the meta, what they cover, and what roles you're missing." : "Start with a top meta pick, or add any Pokémon you like."}</div>`;
+    let h = `<div class="tb-filters"><span class="hint">Filter:</span>${FILTERS.map(f => `<button class="chip ${activeFilters.includes(f.id)?"on":""}" data-filter="${f.id}">${activeFilters.includes(f.id)?"✓ ":""}${esc(f.label)}</button>`).join("")}</div>`;
+    h += `<div class="hint">${mons.length ? "Best partners for your current team — based on how often they're paired in the meta, what they cover, and what roles you're missing." : "Start with a top meta pick, or add any Pokémon you like."}</div>`;
     h += ps.map(p => `<div class="tb-sugg"><img src="${sprite(p.id)}" alt=""><div class="tb-sugg-body"><b>${esc(S(p.id).n)}</b> ${typeBadges(S(p.id).t)}<div class="hint">${p.why.slice(0,3).map(esc).join(" · ") || "Solid meta pick"}</div></div>${full?"":`<button class="btn small primary" data-add="${p.id}">Add</button>`}</div>`).join("");
-    el.innerHTML = h || `<div class="hint">No suggestions.</div>`;
+    if (!ps.length) h += `<div class="hint">No suggestions match these filters.</div>`;
+    el.innerHTML = h;
+    el.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { const id = b.dataset.filter; activeFilters = activeFilters.includes(id) ? activeFilters.filter(x=>x!==id) : activeFilters.concat(id); saveFilters(); renderCoach(); });
     el.querySelectorAll("[data-add]").forEach(b => b.onclick = () => { addToTeam(t, b.dataset.add); render(); toast(`Added ${S(b.dataset.add).n} with its most common set`); });
   } else if (coachTab === "teams"){
     const st = sampleTeams(t);
