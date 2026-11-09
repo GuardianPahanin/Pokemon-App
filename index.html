@@ -72,7 +72,7 @@
   .tb-sugg { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 10px 6px 4px; margin-top:6px; }
   .tb-sugg > img { width:56px; height:56px; image-rendering:pixelated; flex:none; } .tb-sugg-body { flex:1; min-width:0; } .tb-sugg-body .badge { font-size:11px; padding:2px 7px; }
   .tb-sugg .tb-minis { flex:1; margin:0; } .tb-sugg .tb-minis img { width:40px; height:40px; }
-  .tb-checks .ck { padding:8px 10px; border-radius:10px; margin-top:6px; font-size:14px; background:var(--card); border:1px solid var(--line); }
+  .tb-checks .ck, #megaWarn .ck { padding:8px 10px; border-radius:10px; margin-top:6px; font-size:14px; background:var(--card); border:1px solid var(--line); }
   .ck.ok { border-color:#4f9a5a88; } .ck.warn { border-color:#f08a3c; } .ck.bad { border-color:#d93a3a; background:#d93a3a18; } .ck.info { border-color:#6890f0; }
   .tb-def { display:grid; grid-template-columns:1fr 1fr; gap:4px; } .tb-def-cell { display:flex; align-items:center; gap:6px; font-size:13px; padding:3px 6px; border-radius:8px; }
   .tb-def-cell .badge { min-width:70px; text-align:center; font-size:11px; } .tb-def-cell.hot { background:#d93a3a2a; } .tb-def-cell.warm { background:#f08a3c22; } .tb-def-cell.cool { background:#4f9a5a22; }
@@ -99,6 +99,8 @@
   .nt-foot { position:sticky; bottom:-28px; background:var(--bg); padding:10px 0 18px; margin-top:14px; border-top:1px solid var(--line); }
   .nt-foot .hint { margin:0; text-align:center; }
   .tb-filters { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:2px 0 8px; } .tb-filters .chip { padding:5px 11px; font-size:13px; }
+  .tb-slot { position:relative; } .mega-badge { position:absolute; top:6px; right:6px; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px; background:linear-gradient(135deg,#f85888,#7c6cf0); color:#fff; }
+  #megaWarn .ck { margin-top:8px; } #megaWarn .tb-row { margin:8px 0 0; }
   body.noscroll { overflow:hidden; }
   #tbToast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:#1c1c1e; color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; z-index:60; pointer-events:none; max-width:90vw; }
   #tbToast.show { opacity:1; transform:translateX(-50%); }

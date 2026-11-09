@@ -190,6 +190,12 @@ function sampleTeams(t){
     .filter(x => !mine.size || x.overlap>0).sort((a,b)=>b.overlap-a.overlap).slice(0,8);
 }
 function makeMon(t, sid, item, slot, base){ const ctx = teamCtx(t, slot); if (base) ctx.noMega = true; const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || ((ctx.mega || ctx.noMega) && G.items[item].m))) item = ""; return {s:sid, sp:S(sid).sp, ability:s.ability, item: item || s.item, moves:s.moves}; }
+function nonMegaItem(t, mon, slot, reserve){ // best non-stone item for a Pokémon dropping its Mega Stone
+  const ctx = teamCtx(t, slot); ctx.noMega = true; if (reserve) ctx.used.add(reserve);
+  const set = setOf(t, mon.s); const ok = i => itemLegal(t, i) && !ctx.used.has(i) && !G.items[i].m;
+  const it = set && set.i.find(x => ok(x[0])); if (it) return it[0];
+  const idea = itemIdeas(t, mon.s, mon.moves).find(x => ok(x.k)); return idea ? idea.k : "";
+}
 function monFromKey(t, key, slot){ const [sid, stone] = key.split("|"); return stone ? makeMon(t, sid, stone, slot) : makeMon(t, sid, null, slot, true); }
 function addToTeam(t, sid, item){ const i = t.mons.findIndex(x=>!x); if (i<0) return false; t.mons[i] = makeMon(t, sid, item); save(); return true; }
 function autoFill(t){ while (t.mons.some(x=>!x)){ const p = partnerSuggestions(t,1)[0]; if (!p) break; addToTeam(t, p.id); } }
@@ -282,7 +288,7 @@ function renderTeam(){
   mons.forEach((m,i) => {
     if (!m) { h += `<button class="tb-slot empty" data-slot="${i}"><span>+</span><small>Add Pokémon</small></button>`; return; }
     const es = effSpecies(m);
-    h += `<button class="tb-slot" data-slot="${i}"><img src="${sprite(es)}" alt=""><b>${esc(S(es).n)}</b><div>${typeBadges(S(es).t)}</div><small>${m.item?esc(G.items[m.item].n):"No item"}</small></button>`;
+    h += `<button class="tb-slot" data-slot="${i}">${es!==m.s?'<span class="mega-badge">Mega</span>':""}<img src="${sprite(es)}" alt=""><b>${esc(S(es).n)}</b><div>${typeBadges(S(es).t)}</div><small>${m.item?esc(G.items[m.item].n):"No item"}</small></button>`;
   });
   h += `</div>`;
   if (mons.some(x=>!x)) h += `<button class="btn block" id="tbAuto">✨ Auto-fill empty slots from the meta</button>`;
@@ -367,7 +373,12 @@ function slotEditor(){
   const pct = (arr, k) => { const x = arr && arr.find(y=>y[0]===k); return x ? `<span class="pct">${Math.round(x[1])}%</span>` : ""; };
   let h = `<div class="tb-ed-top"><img src="${sprite(es)}" alt=""><div><h3>${esc(S(es).n)}</h3>${typeBadges(S(es).t)}<div class="hint">${set?`${usageOf(t,m.s).toFixed(1)}% usage in this format`:"Not in the meta snapshot — suggestions use STAB, coverage and doubles staples"}</div></div></div>
     <div class="tb-row"><button class="btn" id="edChange">Change Pokémon</button><button class="btn primary" id="edMeta">${set?"Apply meta set":"Apply suggested set"}</button></div>`;
-  if (es !== m.s) h += `<div class="hint">Mega Evolves into ${esc(S(es).n)} — ability ${esc(S(es).a[0])}. Weaknesses use the Mega's typing.</div>`;
+  const stones = megaStoneFor(t, m.s);
+  if (stones.length){
+    const lbl = st => { const f = S(G.items[st].m[m.s]).n.replace(S(m.s).n, "").replace(/^-/,""); return f.replace(/-/g," ") || "Mega"; };
+    h += `<label>Mega Evolution</label><div class="tb-chips"><button class="chip ${es===m.s?"on":""}" data-mega="">Off</button>${stones.map(st => `<button class="chip ${m.item===st?"on":""}" data-mega="${st}">${esc(lbl(st))}</button>`).join("")}</div><div id="megaWarn"></div>`;
+  }
+  if (es !== m.s) h += `<div class="hint">Mega Evolves into ${esc(S(es).n)} (holding ${esc(G.items[m.item].n)}) — ability ${esc(S(es).a[0])}. Weaknesses use the Mega's typing.</div>`;
   h += `<label>Ability</label><div class="tb-chips">${sp.a.map(a => `<button class="chip ${m.ability===a?"on":""}" data-ab="${esc(a)}">${esc(a)} ${pct(set&&set.a,a)}</button>`).join("")}</div>`;
   if (G.abilities[m.ability]) h += `<div class="hint">${esc(G.abilities[m.ability])}</div>`;
   h += `<label>Item</label><button class="btn block left" id="edItem">${m.item?`<b>${esc(G.items[m.item].n)}</b> ${pct(set&&set.i,m.item)}<br><small>${esc(G.items[m.item].d)}</small>`:"Choose item…"}</button>`;
@@ -381,6 +392,18 @@ function slotEditor(){
     $("#edChange").onclick = () => speciesPicker(key => { t.mons[curSlot] = monFromKey(t, key, curSlot); save(); render(); slotEditor(); });
     $("#edMeta").onclick = () => { const s = suggestSet(t, m.s, teamCtx(t, curSlot)); Object.assign(m, s); save(); render(); slotEditor(); toast("Set applied"); };
     document.querySelectorAll("[data-ab]").forEach(b => b.onclick = () => { m.ability = b.dataset.ab; save(); slotEditor(); });
+    document.querySelectorAll("[data-mega]").forEach(b => b.onclick = () => {
+      const st = b.dataset.mega;
+      if (!st){ if (G.items[m.item] && G.items[m.item].m) { m.item = nonMegaItem(t, m, curSlot); save(); render(); slotEditor(); toast("Mega Evolution off"); } return; }
+      const other = t.mons.findIndex((x,i) => x && i!==curSlot && effSpecies(x)!==x.s);
+      const apply = () => { m.item = st; save(); render(); slotEditor(); toast(`${S(G.items[st].m[m.s]).n} on`); };
+      if (other < 0) return apply();
+      const o = t.mons[other];
+      $("#megaWarn").innerHTML = `<div class="ck warn">! ${esc(S(effSpecies(o)).n)} is already your Mega — only one Pokémon can Mega Evolve per battle.
+        <div class="tb-row"><button class="btn small primary" id="mwSwitch">Make this my Mega instead</button><button class="btn small" id="mwBoth">Keep both stones</button></div></div>`;
+      $("#mwSwitch").onclick = () => { o.item = nonMegaItem(t, o, other, st); apply(); };
+      $("#mwBoth").onclick = apply;
+    });
     $("#edItem").onclick = () => itemPicker();
     document.querySelectorAll("[data-mv]").forEach(b => b.onclick = () => movePicker(+b.dataset.mv));
     $("#edRemove").onclick = () => { t.mons[curSlot] = null; save(); closeSheet(); render(); };
