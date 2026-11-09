@@ -145,7 +145,13 @@ const FILTERS = [
   {id:"noub", label:"No Ultra Beasts", keep: id => !S(id).ub},
 ];
 const noMegas = () => activeFilters.includes("nomega");
-let activeFilters = (() => { try { return JSON.parse(localStorage.getItem("partner-filters")) || []; } catch(e){ return []; } })();
+let activeFilters = (() => { try { return JSON.parse(localStorage.getItem("partner-filters")) || []; } catch(e){ return []; } // If the Teams tab is already showing when this script loads (restored on startup), draw it now
+const teamVisible = () => { const el = document.getElementById("teamMode"); return el && !el.hidden; };
+if (teamVisible()) window.openTeams();
+// Redraw when the app returns from the background (phones can restore an empty view)
+window.addEventListener("pageshow", e => { if (teamVisible() && (e.persisted || !root().innerHTML.trim())) window.openTeams(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && teamVisible() && !root().innerHTML.trim()) window.openTeams(); });
+})();
 const saveFilters = () => { try { localStorage.setItem("partner-filters", JSON.stringify(activeFilters)); } catch(e){} };
 const passesFilters = (id, t) => FILTERS.every(f => !activeFilters.includes(f.id) || f.keep(id, t));
 function partnerSuggestions(t, limit=10){
@@ -485,4 +491,10 @@ window.openTeams = function(){
     DS.main = g; M = m; render();
   }).catch(() => { root().innerHTML = `<div class="card">Couldn't load team data. Check your connection and reopen this tab.</div>`; loading = null; });
 };
+// If the Teams tab is already showing when this script loads (restored on startup), draw it now
+const teamVisible = () => { const el = document.getElementById("teamMode"); return el && !el.hidden; };
+if (teamVisible()) window.openTeams();
+// Redraw when the app returns from the background (phones can restore an empty view)
+window.addEventListener("pageshow", e => { if (teamVisible() && (e.persisted || !root().innerHTML.trim())) window.openTeams(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && teamVisible() && !root().innerHTML.trim()) window.openTeams(); });
 })();

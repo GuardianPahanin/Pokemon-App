@@ -238,7 +238,8 @@ function showTab(which){
   try{ localStorage.setItem("lastTab", which); }catch(e){}
 }
 tn.onclick = ()=>showTab("name"); tt.onclick = ()=>showTab("type"); tm.onclick = ()=>showTab("team");
-try{ const lt = localStorage.getItem("lastTab"); if (lt==="team") setTimeout(()=>showTab("team"),0); }catch(e){}
+function restoreTab(){ try{ if (localStorage.getItem("lastTab")==="team") showTab("team"); }catch(e){} }
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", restoreTab); else restoreTab();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}).catch(()=>{});
 </script>
 <script src="builder.js"></script>
