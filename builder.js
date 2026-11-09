@@ -479,7 +479,8 @@ function freshness(){
   const label = new Date(y, mo - 1, 1).toLocaleString("en-US", {month:"long", year:"numeric"});
   const age = months <= 0 ? "this month" : months === 1 ? "1 month ago" : `${months} months ago`;
   const stale = months > 2;
-  return `<div class="fresh ${stale?"stale":""}">${stale?"⚠️":"🕒"} Meta data last updated: <b>${label}</b> (${age})${stale?" — ask Claude to refresh it":""}</div>`;
+  const chk = M.champ.checked ? new Date(M.champ.checked + "T12:00").toLocaleString("en-US", {month:"short", day:"numeric", year:"numeric"}) : "";
+  return `<div class="fresh ${stale?"stale":""}">${stale?"⚠️":"🕒"} Meta data from <b>${label}</b> (${age})${chk?` · pulled ${chk}`:""}${stale?" — refresh soon":""}</div>`;
 }
 /* ---------- battle helper ---------- */
 const broot = () => $("#battleMode");

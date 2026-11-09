@@ -34,7 +34,7 @@ for(const f of ['champ','svi']){
       if(mons.some(m=>!legal.has(m.s))){warn.push(f+' team illegal '+names);continue;}
       const key=mons.map(m=>m.s).sort().join(','); if(teamKey.has(key)) continue; teamKey.add(key); teams.push(mons); }
   }
-  out[f]={date:'2026-05',source:'Pikalytics (Showdown ladder 1760+ & tournament teams)',usage,sets,teams};
+  out[f]={date:'2026-05',checked:'2026-11-08',source:'Pikalytics (Showdown ladder 1760+ & tournament teams)',usage,sets,teams};
 }
 fs.writeFileSync('meta.json',JSON.stringify(out));
 console.log('champ sets',Object.keys(out.champ.sets).length,'teams',out.champ.teams.length,'| svi sets',Object.keys(out.svi.sets).length,'teams',out.svi.teams.length);
