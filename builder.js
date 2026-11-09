@@ -71,7 +71,7 @@ function suggestSet(t, sid, ctx){
     moves = set.m.filter(x => L.includes(x[0])).slice(0,4).map(x => x[0]);
   }
   if (moves.length < 4) for (const r of heuristicMoves(t, sid)) { if (moves.length>=4) break; if (!moves.includes(r.i)) moves.push(r.i); }
-  if (!item){ const st = megaStoneFor(t, sid).filter(okItem); item = st[0] || itemIdeas(t, sid, moves).find(x => okItem(x.k))?.k || ""; }
+  if (!item){ item = itemIdeas(t, sid, moves).find(x => okItem(x.k))?.k || ""; }
   return {ability, item, moves};
 }
 function heuristicMoves(t, sid){ // for any Pokémon: strongest STAB, coverage, Protect, doubles staples
@@ -189,7 +189,8 @@ function sampleTeams(t){
   return meta(t).teams.map(tm => ({tm, overlap: tm.filter(x=>mine.has(x.s)).length}))
     .filter(x => !mine.size || x.overlap>0).sort((a,b)=>b.overlap-a.overlap).slice(0,8);
 }
-function makeMon(t, sid, item, slot){ const ctx = teamCtx(t, slot); const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || ((ctx.mega || ctx.noMega) && G.items[item].m))) item = ""; return {s:sid, sp:S(sid).sp, ability:s.ability, item: item || s.item, moves:s.moves}; }
+function makeMon(t, sid, item, slot, base){ const ctx = teamCtx(t, slot); if (base) ctx.noMega = true; const s = suggestSet(t, sid, ctx); if (item && (ctx.used.has(item) || ((ctx.mega || ctx.noMega) && G.items[item].m))) item = ""; return {s:sid, sp:S(sid).sp, ability:s.ability, item: item || s.item, moves:s.moves}; }
+function monFromKey(t, key, slot){ const [sid, stone] = key.split("|"); return stone ? makeMon(t, sid, stone, slot) : makeMon(t, sid, null, slot, true); }
 function addToTeam(t, sid, item){ const i = t.mons.findIndex(x=>!x); if (i<0) return false; t.mons[i] = makeMon(t, sid, item); save(); return true; }
 function autoFill(t){ while (t.mons.some(x=>!x)){ const p = partnerSuggestions(t,1)[0]; if (!p) break; addToTeam(t, p.id); } }
 
@@ -302,7 +303,7 @@ function renderTeam(){
       $("#tbDup").onclick = () => { const c = JSON.parse(JSON.stringify(t)); c.id = uid(); c.name += " (copy)"; teams.unshift(c); save(); closeSheet(); curTeam = c; render(); };
       $("#tbDel").onclick = () => { $("#tbDel").outerHTML = `<button class="btn block danger" id="tbDel2">Tap again to delete</button>`; $("#tbDel2").onclick = () => { teams = teams.filter(x=>x!==t); save(); closeSheet(); curTeam = null; render(); }; };
     });
-  root().querySelectorAll("[data-slot]").forEach(b => b.onclick = () => { curSlot = +b.dataset.slot; mons[curSlot] ? slotEditor() : speciesPicker(sid => { mons[curSlot] = makeMon(t, sid, null, curSlot); save(); render(); slotEditor(); }); });
+  root().querySelectorAll("[data-slot]").forEach(b => b.onclick = () => { curSlot = +b.dataset.slot; mons[curSlot] ? slotEditor() : speciesPicker(key => { mons[curSlot] = monFromKey(t, key, curSlot); save(); render(); slotEditor(); }); });
   const auto = $("#tbAuto"); if (auto) auto.onclick = () => { autoFill(t); render(); toast(activeFilters.length ? "Filled using your partner filters" : "Filled with the best-scoring partners"); };
   root().querySelectorAll("[data-ct]").forEach(b => b.onclick = () => { coachTab = b.dataset.ct; renderTeam(); });
   renderCoach();
@@ -315,7 +316,8 @@ function renderCoach(){
     const ps = partnerSuggestions(t, 10);
     let h = `<div class="tb-filters"><span class="hint">Filter:</span>${FILTERS.map(f => `<button class="chip ${activeFilters.includes(f.id)?"on":""}" data-filter="${f.id}">${activeFilters.includes(f.id)?"✓ ":""}${esc(f.label)}</button>`).join("")}</div>`;
     h += `<div class="hint">${mons.length ? "Best partners for your current team — based on how often they're paired in the meta, what they cover, and what roles you're missing." : "Start with a top meta pick, or add any Pokémon you like."}</div>`;
-    h += ps.map(p => `<div class="tb-sugg"><img src="${sprite(p.id)}" alt=""><div class="tb-sugg-body"><b>${esc(S(p.id).n)}</b> ${typeBadges(S(p.id).t)}<div class="hint">${p.why.slice(0,3).map(esc).join(" · ") || "Solid meta pick"}</div></div>${full?"":`<button class="btn small primary" data-add="${p.id}">Add</button>`}</div>`).join("");
+    h += ps.map(p => { const it = suggestSet(t, p.id, teamCtx(t)).item; const shown = effSpecies({s:p.id, item:it});
+      return `<div class="tb-sugg"><img src="${sprite(shown)}" alt=""><div class="tb-sugg-body"><b>${esc(S(shown).n)}</b> ${typeBadges(S(shown).t)}<div class="hint">${p.why.slice(0,3).map(esc).join(" · ") || "Solid meta pick"}</div></div>${full?"":`<button class="btn small primary" data-add="${p.id}">Add</button>`}</div>`; }).join("");
     if (!ps.length) h += `<div class="hint">No suggestions match these filters.</div>`;
     el.innerHTML = h;
     el.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { const id = b.dataset.filter; activeFilters = activeFilters.includes(id) ? activeFilters.filter(x=>x!==id) : activeFilters.concat(id); saveFilters(); renderCoach(); });
@@ -376,7 +378,7 @@ function slotEditor(){
   }
   h += `<button class="btn block danger" id="edRemove">Remove from team</button>`;
   sheet(h, () => {
-    $("#edChange").onclick = () => speciesPicker(sid => { t.mons[curSlot] = makeMon(t, sid, null, curSlot); save(); render(); slotEditor(); });
+    $("#edChange").onclick = () => speciesPicker(key => { t.mons[curSlot] = monFromKey(t, key, curSlot); save(); render(); slotEditor(); });
     $("#edMeta").onclick = () => { const s = suggestSet(t, m.s, teamCtx(t, curSlot)); Object.assign(m, s); save(); render(); slotEditor(); toast("Set applied"); };
     document.querySelectorAll("[data-ab]").forEach(b => b.onclick = () => { m.ability = b.dataset.ab; save(); slotEditor(); });
     $("#edItem").onclick = () => itemPicker();
@@ -402,8 +404,14 @@ function speciesPicker(cb){
   const t = curTeam; const have = new Set(t.mons.filter((x,i)=>x && i!==curSlot).map(m=>S(m.s).nm));
   const usage = Object.fromEntries(meta(t).usage);
   const ids = legalSpecies(t).filter(id => !have.has(S(id).nm)).sort((a,b) => (usage[b]||0)-(usage[a]||0) || S(a).n.localeCompare(S(b).n));
-  listPicker("Choose Pokémon", ids.map(id => ({key:id, search:toID(S(id).n), group: usage[id] ? "Top of the meta" : "All legal Pokémon",
-    html:`<img src="${sprite(id)}" loading="lazy" alt=""><span class="li-main">${esc(S(id).n)}${S(id).r?' <small class="pct">R</small>':""}</span>${typeBadges(S(id).t)}${usage[id]?`<span class="pct">${usage[id].toFixed(1)}%</span>`:""}`})),
+  const rows = [];
+  for (const id of ids){
+    const group = usage[id] ? "Top of the meta" : "All legal Pokémon";
+    rows.push({key:id, search:toID(S(id).n), group, html:`<img src="${sprite(id)}" loading="lazy" alt=""><span class="li-main">${esc(S(id).n)}${S(id).r?' <small class="pct">R</small>':""}</span>${typeBadges(S(id).t)}${usage[id]?`<span class="pct">${usage[id].toFixed(1)}%</span>`:""}`});
+    for (const st of megaStoneFor(t, id)){ const mid = G.items[st].m[id]; if (!S(mid)) continue;
+      rows.push({key:`${id}|${st}`, search:toID(S(mid).n)+"mega"+toID(S(id).n), group, html:`<img src="${sprite(mid)}" loading="lazy" alt=""><span class="li-main">${esc(S(mid).n)}<br><small>holds ${esc(G.items[st].n)}</small></span>${typeBadges(S(mid).t)}`}); }
+  }
+  listPicker("Choose Pokémon", rows,
     sid => { closeSheet(); cb(sid); }, {onClose: () => { if (curTeam.mons[curSlot]) slotEditor(); }});
 }
 function itemPicker(){
