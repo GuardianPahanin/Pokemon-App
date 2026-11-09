@@ -146,11 +146,11 @@ const FILTERS = [
 ];
 const noMegas = () => activeFilters.includes("nomega");
 let activeFilters = (() => { try { return JSON.parse(localStorage.getItem("partner-filters")) || []; } catch(e){ return []; } // If the Teams tab is already showing when this script loads (restored on startup), draw it now
-const teamVisible = () => { const el = document.getElementById("teamMode"); return el && !el.hidden; };
 if (teamVisible()) window.openTeams();
+if (battleVisible()) window.openBattle();
 // Redraw when the app returns from the background (phones can restore an empty view)
-window.addEventListener("pageshow", e => { if (teamVisible() && (e.persisted || !root().innerHTML.trim())) window.openTeams(); });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && teamVisible() && !root().innerHTML.trim()) window.openTeams(); });
+window.addEventListener("pageshow", e => { if (teamVisible() && (e.persisted || !root().innerHTML.trim())) window.openTeams(); if (battleVisible() && (e.persisted || !broot().innerHTML.trim())) window.openBattle(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") return; if (teamVisible() && !root().innerHTML.trim()) window.openTeams(); if (battleVisible() && !broot().innerHTML.trim()) window.openBattle(); });
 })();
 const saveFilters = () => { try { localStorage.setItem("partner-filters", JSON.stringify(activeFilters)); } catch(e){} };
 const passesFilters = (id, t) => FILTERS.every(f => !activeFilters.includes(f.id) || f.keep(id, t));
@@ -470,6 +470,245 @@ function movePicker(k){
   listPicker(`Move ${k+1} for ${esc(S(m.s).n)}`, rows, key => { const i = +key; if (i<0) m.moves.splice(k,1); else { if (k < m.moves.length) m.moves[k] = i; else m.moves.push(i); } save(); render(); slotEditor(); }, {noFocus:true, onClose: () => slotEditor()});
 }
 
+/* ---------- battle helper ---------- */
+const broot = () => $("#battleMode");
+const BSTORE = "battle-v1";
+let battle = null;
+function bload(){ try { battle = JSON.parse(localStorage.getItem(BSTORE)); } catch(e){ battle = null; } }
+function bsave(){ try { localStorage.setItem(BSTORE, JSON.stringify(battle)); } catch(e){} }
+const bTeam = () => battle && teams.find(t => t.id === battle.teamId);
+
+// ability effects on incoming move types
+function abilityMult(ability, type){
+  const g = curGen;
+  switch (ability){
+    case "Levitate": case "Earth Eater": return type === "Ground" ? 0 : 1;
+    case "Flash Fire": case "Well-Baked Body": return type === "Fire" ? 0 : 1;
+    case "Water Absorb": case "Dry Skin": return type === "Water" ? 0 : 1;
+    case "Storm Drain": return type === "Water" && g >= 5 ? 0 : 1;
+    case "Volt Absorb": case "Motor Drive": return type === "Electric" ? 0 : 1;
+    case "Lightning Rod": return type === "Electric" && g >= 5 ? 0 : 1;
+    case "Sap Sipper": return type === "Grass" ? 0 : 1;
+    case "Thick Fat": return type === "Fire" || type === "Ice" ? 0.5 : 1;
+    case "Heatproof": case "Water Bubble": return type === "Fire" ? 0.5 : 1;
+    case "Purifying Salt": return type === "Ghost" ? 0.5 : 1;
+    default: return 1;
+  }
+}
+const abilOf = mon => { const es = effSpecies(mon); return es !== mon.s ? S(es).a[0] : (mon.ability || S(mon.s).a[0]); };
+function hitMult(type, mon){
+  const ab = abilOf(mon); let x = typesOf(mon).reduce((p,d) => p * ef(type, d), 1) * abilityMult(ab, type);
+  if (ab === "Wonder Guard" && x <= 1) x = 0;
+  return x;
+}
+const spe = mon => S(effSpecies(mon)).s[5];
+// damaging options of an attacker vs a defender, best first
+function attacks(att, def){
+  const es = effSpecies(att), stab = S(es).t;
+  let ms = att.moves.map(mv).filter(m => m.c !== "X" && m.bp > 0);
+  const guessed = !ms.length;
+  if (guessed) ms = stab.map(t => ({n:`${t} STAB`, t, c: S(es).s[1] >= S(es).s[3] ? "P" : "S", bp: 80}));
+  const sa = S(es).s, sd = S(effSpecies(def)).s;
+  return ms.map(m => { const mult = hitMult(m.t, def);
+    const ratio = m.c === "P" ? sa[1] / sd[2] : sa[3] / sd[4];
+    return {...m, mult, guessed, score: m.bp * mult * (stab.includes(m.t) ? 1.5 : 1) * ratio * (m.spread === 1 ? 0.75 : 1)}; })
+    .sort((a,b) => b.score - a.score);
+}
+const multTxt = x => x === 0 ? "immune" : x >= 4 ? "4×" : x >= 2 ? "2×" : x <= 0.25 ? "¼×" : x < 1 ? "½×" : "1×";
+
+function battleAdvice(t){
+  const me = battle.myActive.map(i => i === null ? null : t.mons[i]).filter(m => m && !battle.fainted.includes(t.mons.indexOf(m)));
+  const opp = battle.oppActive.map(i => i === null ? null : battle.opp[i]).filter(o => o && !o.fainted);
+  const bench = t.mons.map((m,i) => ({m,i})).filter(x => x.m && !battle.myActive.includes(x.i) && !battle.fainted.includes(x.i) && (!battle.brought || battle.brought.includes(x.i)));
+  const out = [], suggested = new Set();
+  if (!opp.length){ out.push({k:"info", h:"Add the opponent's leads", b:"Tap an empty slot on their side to add what you see."}); return out; }
+  for (const a of me){
+    const an = S(effSpecies(a)).n;
+    // threats to me
+    for (const o of opp){
+      const on = S(effSpecies(o)).n, atks = attacks(o, a), top = atks.filter(x => x.mult >= 2);
+      if (top.length) out.push({k:"bad", h:`${an} is weak to ${on}`, b: top.slice(0,3).map(x => `${x.n} (${multTxt(x.mult)})`).join(", ") + (atks[0].guessed ? " — guessed from its typing" : "")});
+    }
+    // my best options
+    const opts = opp.map(o => ({o, best: attacks(a, o)[0]})).filter(x => x.best);
+    opts.sort((x,y) => y.best.score - x.best.score);
+    if (opts.length){
+      const {o, best} = opts[0];
+      out.push({k: best.mult >= 2 ? "ok" : "info", h:`${an}: ${best.n} → ${S(effSpecies(o)).n}`, b:`${multTxt(best.mult)}${best.spread===1?" · hits both foes":""}${best.guessed?" · add its moves for better advice":""}${opts.length>1 ? ` · vs ${S(effSpecies(opts[1].o)).n}: ${opts[1].best.n} (${multTxt(opts[1].best.mult)})` : ""}`});
+      const useless = opp.filter(o2 => attacks(a, o2).every(x => x.mult < 1));
+      for (const o2 of useless) out.push({k:"warn", h:`${an} can't hit ${S(effSpecies(o2)).n} well`, b:"All its attacks are resisted or blocked."});
+    }
+    // switch suggestion if threatened
+    const worst = Math.max(0, ...opp.map(o => Math.max(0, ...attacks(o, a).map(x => x.mult))));
+    if (worst >= 2 && bench.length){
+      const cands = bench.map(({m,i}) => ({m, i, w: Math.max(0, ...opp.map(o => Math.max(0, ...attacks(o, m).map(x => x.mult)))), hit: Math.max(0, ...opp.map(o => Math.max(0, ...attacks(m, o).map(x => x.mult)))) }))
+        .filter(c => c.w < worst && !suggested.has(c.i)).sort((x,y) => x.w - y.w || y.hit - x.hit);
+      if (cands.length){ const c = cands[0]; suggested.add(c.i);
+        out.push({k:"switch", h:`Switch idea: ${an} → ${S(effSpecies(c.m)).n}`, b:`Takes at most ${multTxt(c.w)} from their moves${c.hit>=2?` and hits back super-effectively`:""}.`, sw:[t.mons.indexOf(a), c.i]}); }
+    }
+  }
+  // speed
+  const all = [...me.map(m => ({n:S(effSpecies(m)).n, s:spe(m), mine:true})), ...opp.map(o => ({n:S(effSpecies(o)).n, s:spe(o), mine:false}))].sort((x,y) => y.s - x.s);
+  out.push({k:"info", h:"Speed order (base stats)", b: all.map(x => `${x.mine?"🟦":"🟥"} ${x.n} ${x.s}`).join(" › ") + " — Tailwind, Trick Room, Scarf and EVs change this"});
+  // focus target
+  if (me.length === 2 && opp.length === 2){
+    const sc = opp.map(o => me.reduce((s,a) => s + Math.max(0, ...attacks(a, o).map(x => x.mult >= 2 ? 1 : 0)), 0));
+    const f = sc[0] > sc[1] ? 0 : sc[1] > sc[0] ? 1 : -1;
+    if (f >= 0 && sc[f] >= 1) out.push({k:"ok", h:`Focus ${S(effSpecies(opp[f])).n}`, b: sc[f] === 2 ? "Both your active Pokémon hit it super-effectively." : "One of your active Pokémon hits it super-effectively."});
+  }
+  // opponent tricks
+  for (const o of opp){
+    const ids = o.moves.map(i => toID(G.moves[i][0])), on = S(effSpecies(o)).n, notes = [];
+    if (ids.includes("fakeout")) notes.push("Fake Out (flinches turn 1)");
+    if (ids.includes("trickroom")) notes.push("Trick Room (slow Pokémon move first)");
+    if (ids.includes("tailwind")) notes.push("Tailwind (doubles their speed)");
+    if (ids.some(x => x==="followme"||x==="ragepowder")) notes.push("redirection");
+    if (ids.includes("spore")) notes.push("Spore");
+    if (ids.includes("wideguard")) notes.push("Wide Guard (blocks spread moves)");
+    if (abilOf(o) === "Intimidate") notes.push("Intimidate");
+    if (notes.length) out.push({k:"warn", h:`${on} may use…`, b: notes.join(" · ")});
+  }
+  return out;
+}
+
+function renderBattle(){
+  const el = broot(); if (!el) return;
+  if (!DS.main || !M){ el.innerHTML = `<div class="card">Loading…</div>`; return; }
+  load(); bload();
+  const t = bTeam();
+  if (!battle || !t){ return battlePickTeam(); }
+  if (!DS[dsKey(t)]){ el.innerHTML = `<div class="card">Loading ${esc(fmtLabel(t))} data…</div>`; ensureData(t).then(renderBattle); return; }
+  use(t);
+  if (!battle.started) return battlePickLeads(t);
+  const myCard = (i, side) => {
+    const m = i === null || i === undefined ? null : t.mons[i];
+    if (!m) return `<button class="bt-card empty" data-myslot="${side}"><span>+</span><small>Send in</small></button>`;
+    const es = effSpecies(m), fainted = battle.fainted.includes(i);
+    return `<button class="bt-card mine ${fainted?"fainted":""}" data-myslot="${side}"><div class="bt-top"><img src="${sprite(es)}" alt=""><div><b>${esc(S(es).n)}</b><div>${typeBadges(S(es).t)}</div></div></div>
+      <small class="bt-item">${m.item?esc(G.items[m.item].n):"No item"} · ${esc(abilOf(m))}</small><div class="bt-moves">${m.moves.map(i2 => { const x = mv(i2); return `<span style="border-color:${COL[x.t]}">${esc(x.n)}</span>`; }).join("")}</div></button>`;
+  };
+  const oppCard = (idx, side) => {
+    const o = idx === null || idx === undefined ? null : battle.opp[idx];
+    if (!o) return `<button class="bt-card empty" data-oppslot="${side}"><span>+</span><small>Add their Pokémon</small></button>`;
+    const es = effSpecies(o);
+    return `<button class="bt-card opp ${o.fainted?"fainted":""}" data-oppslot="${side}"><div class="bt-top"><img src="${sprite(es)}" alt=""><div><b>${esc(S(es).n)}</b><div>${typeBadges(S(es).t)}</div></div></div>
+      <small class="bt-item">${o.item?esc(G.items[o.item].n):"No item"}${o.seen&&o.seen.item?" ✓":" ?"} · ${esc(abilOf(o))}</small><div class="bt-moves">${o.moves.map(i2 => { const x = mv(i2); return `<span style="border-color:${COL[x.t]}" class="${(o.seen&&o.seen.moves||[]).includes(i2)?"seen":""}">${esc(x.n)}</span>`; }).join("")}</div></button>`;
+  };
+  const oppBench = battle.opp.map((o,i) => ({o,i})).filter(x => !battle.oppActive.includes(x.i));
+  const myBench = t.mons.map((m,i) => ({m,i})).filter(x => x.m && !battle.myActive.includes(x.i) && (!battle.brought || battle.brought.includes(x.i)));
+  let h = `<div class="tb-head"><h2 style="flex:1">${esc(t.name)}</h2><span class="fmt ${t.format}">${esc(fmtLabel(t))}</span></div>
+    <div class="tb-row"><button class="btn small" id="btNew">New battle</button><button class="btn small" id="btRematch">Rematch (same team)</button></div>
+    <div class="bt-label">Opponent</div><div class="bt-row">${oppCard(battle.oppActive[0],0)}${oppCard(battle.oppActive[1],1)}</div>
+    <div class="bt-bench">${oppBench.map(({o,i}) => `<button class="bt-chip ${o.fainted?"fainted":""}" data-oppbench="${i}"><img src="${sprite(effSpecies(o))}" alt="">${esc(S(effSpecies(o)).n)}</button>`).join("")}<button class="bt-chip add" id="btSeen">+ Seen on their team</button></div>
+    <div class="bt-label">You</div><div class="bt-row">${myCard(battle.myActive[0],0)}${myCard(battle.myActive[1],1)}</div>
+    <div class="bt-bench">${myBench.map(({m,i}) => `<button class="bt-chip ${battle.fainted.includes(i)?"fainted":""}" data-mybench="${i}"><img src="${sprite(effSpecies(m))}" alt="">${esc(S(effSpecies(m)).n)}</button>`).join("")}</div>
+    <h4>Advice</h4><div class="bt-advice">${battleAdvice(t).map(a => `<div class="ck ${a.k==="switch"?"info":a.k}"><b>${esc(a.h)}</b><br><span>${esc(a.b)}</span>${a.sw?`<div><button class="btn small primary" data-doswitch="${a.sw.join(",")}">Switch</button></div>`:""}</div>`).join("")}</div>
+    <div class="hint" style="margin-top:10px">Opponent sets are assumptions (${meta(t).usage.length ? "most common meta set" : "suggested from stats and learnset"}) — tap their Pokémon to fix moves or items as they're revealed. Advice uses typing, abilities and base stats; it ignores EVs, weather, terrain and Tera.</div>`;
+  el.innerHTML = h;
+  $("#btNew").onclick = () => { battle = null; bsave(); renderBattle(); };
+  $("#btRematch").onclick = () => { battle = {teamId:t.id, started:false, myActive:[null,null], fainted:[], opp:[], oppActive:[null,null]}; bsave(); renderBattle(); };
+  $("#btSeen").onclick = () => addOpp(t, null);
+  el.querySelectorAll("[data-oppslot]").forEach(b => b.onclick = () => { const side = +b.dataset.oppslot, idx = battle.oppActive[side]; idx === null || idx === undefined ? addOpp(t, side) : oppEditor(t, idx, side); });
+  el.querySelectorAll("[data-oppbench]").forEach(b => b.onclick = () => oppEditor(t, +b.dataset.oppbench, null));
+  el.querySelectorAll("[data-myslot]").forEach(b => b.onclick = () => mySlotSheet(t, +b.dataset.myslot));
+  el.querySelectorAll("[data-mybench]").forEach(b => b.onclick = () => myBenchSheet(t, +b.dataset.mybench));
+  el.querySelectorAll("[data-doswitch]").forEach(b => b.onclick = () => { const [from, to] = b.dataset.doswitch.split(",").map(Number); const side = battle.myActive.indexOf(from); if (side >= 0){ battle.myActive[side] = to; bsave(); renderBattle(); toast(`${S(effSpecies(t.mons[to])).n} switched in`); } });
+}
+function battlePickTeam(){
+  const el = broot(); load();
+  let h = `<div class="tb-head"><h2>Battle helper</h2></div><div class="hint">Pick the team you're playing with.</div>`;
+  const ready = teams.filter(t => t.mons.filter(Boolean).length >= 2);
+  if (!ready.length) h += `<div class="card hint">You need a team with at least 2 Pokémon. Build one in the <b>Teams</b> tab first.</div>`;
+  for (const t of ready) h += `<button class="card tb-teamcard" data-bteam="${t.id}"><div class="tb-tc-top"><b>${esc(t.name)}</b><span class="fmt ${t.format}">${esc(fmtLabel(t))}</span></div>
+    <div class="tb-minis">${t.mons.map(m => m ? `<img src="sprites/${m.sp || ((DS.main&&DS.main.species[m.s]||{}).sp) || 0}.png" alt="">` : "").join("")}</div></button>`;
+  el.innerHTML = h;
+  el.querySelectorAll("[data-bteam]").forEach(b => b.onclick = () => { battle = {teamId:b.dataset.bteam, started:false, myActive:[null,null], fainted:[], opp:[], oppActive:[null,null]}; bsave(); renderBattle(); });
+}
+function battlePickLeads(t){
+  const el = broot(); const sel = battle.myActive.filter(x => x !== null);
+  let h = `<div class="tb-head"><button class="btn small" id="btBack">‹ Teams</button><h2 style="flex:1">${esc(t.name)}</h2></div>
+    <div class="hint">Tap your leads in order — <b>1st</b> (left) then <b>2nd</b> (right).</div><div class="tb-slots">`;
+  t.mons.forEach((m,i) => { if (!m) return; const es = effSpecies(m), pos = battle.myActive.indexOf(i);
+    h += `<button class="tb-slot ${pos>=0?"picked":""}" data-lead="${i}">${pos>=0?`<span class="mega-badge" style="background:#7c6cf0">${pos===0?"1st":"2nd"}</span>`:""}<img src="${sprite(es)}" alt=""><b>${esc(S(es).n)}</b><div>${typeBadges(S(es).t)}</div></button>`; });
+  h += `</div><button class="btn primary block" id="btStart" ${sel.length===2?"":"disabled"}>Start battle</button>`;
+  el.innerHTML = h;
+  $("#btBack").onclick = () => { battle = null; bsave(); renderBattle(); };
+  el.querySelectorAll("[data-lead]").forEach(b => b.onclick = () => { const i = +b.dataset.lead, pos = battle.myActive.indexOf(i);
+    if (pos >= 0) battle.myActive[pos] = null; else { const free = battle.myActive.indexOf(null); if (free >= 0) battle.myActive[free] = i; }
+    bsave(); battlePickLeads(t); });
+  $("#btStart").onclick = () => { if (battle.myActive.includes(null)) return; battle.started = true; bsave(); renderBattle(); };
+}
+function addOpp(t, side){
+  const usage = Object.fromEntries(meta(t).usage);
+  const ids = legalSpecies(t).sort((a,b) => (usage[b]||0)-(usage[a]||0) || S(a).n.localeCompare(S(b).n));
+  const rows = [];
+  for (const id of ids){ const group = usage[id] ? "Top of the meta" : "All Pokémon";
+    rows.push({key:id, group, search:toID(S(id).n), html:`<img src="${sprite(id)}" loading="lazy" alt=""><span class="li-main">${esc(S(id).n)}</span>${typeBadges(S(id).t)}${usage[id]?`<span class="pct">${usage[id].toFixed(1)}%</span>`:""}`});
+    for (const st of megaStoneFor(t, id)){ const mid = G.items[st].m[id]; if (!S(mid)) continue;
+      rows.push({key:`${id}|${st}`, group, search:toID(S(mid).n)+"mega"+toID(S(id).n), html:`<img src="${sprite(mid)}" loading="lazy" alt=""><span class="li-main">${esc(S(mid).n)}</span>${typeBadges(S(mid).t)}`}); }
+  }
+  listPicker("Their Pokémon", rows, key => {
+    const [sid, stone] = key.split("|");
+    const s = suggestSet(t, sid, {used:new Set(), mega:false, noMega: !stone});
+    const o = {s:sid, ability:s.ability, item: stone || s.item, moves:s.moves, seen:{moves:[]}};
+    battle.opp.push(o); const idx = battle.opp.length - 1;
+    if (side !== null && side !== undefined) battle.oppActive[side] = idx;
+    bsave(); closeSheet(); renderBattle(); toast(`${S(effSpecies(o)).n} added with its ${meta(t).sets[sid] ? "most common" : "likely"} set`);
+  });
+}
+function oppEditor(t, idx, side){
+  const o = battle.opp[idx], es = effSpecies(o), set = setOf(t, o.s);
+  const pct = (arr, k) => { const x = arr && arr.find(y => y[0]===k); return x ? ` <span class="pct">${Math.round(x[1])}%</span>` : ""; };
+  let h = `<div class="tb-ed-top"><img src="${sprite(es)}" alt=""><div><h3>${esc(S(es).n)}</h3>${typeBadges(S(es).t)}<div class="hint">Their Pokémon · tap anything to correct it</div></div></div>
+    <label>Ability</label><div class="tb-chips">${S(o.s).a.map(a => `<button class="chip ${o.ability===a?"on":""}" data-oab="${esc(a)}">${esc(a)}${pct(set&&set.a,a)}</button>`).join("")}</div>
+    <label>Item</label><button class="btn block left" id="oItem">${o.item?`<b>${esc(G.items[o.item].n)}</b>${pct(set&&set.i,o.item)}`:"Unknown / none"}${o.seen&&o.seen.item?" · <small>confirmed</small>":""}</button>
+    <label>Moves <small class="hint">(tap ✓ when you see one used)</small></label>`;
+  for (let k=0;k<4;k++){ const i = o.moves[k];
+    h += i === undefined ? `<button class="btn block left" data-omv="${k}">+ Add move</button>` : (() => { const x = mv(i), seen = (o.seen.moves||[]).includes(i);
+      return `<div class="bt-mvrow"><button class="btn left" data-omv="${k}"><span class="badge" style="background:${COL[x.t]}">${x.t}</span> <b>${esc(x.n)}</b>${pct(set&&set.m,i)}<br><small>${x.c==="X"?"Status":x.c==="P"?"Physical":"Special"}${x.bp?` · ${x.bp} BP`:""}</small></button><button class="btn ${seen?"primary":""}" data-oseen="${i}">✓</button></div>`; })(); }
+  const isActive = battle.oppActive.includes(idx);
+  h += `<div class="tb-row">${isActive ? `<button class="btn" id="oBench">Switched out</button>` : `<button class="btn" id="oIn">Switched in</button>`}<button class="btn" id="oFaint">${o.fainted?"Not fainted":"Fainted"}</button></div>
+    <button class="btn block danger" id="oRemove">Remove</button>`;
+  sheet(h, () => {
+    document.querySelectorAll("[data-oab]").forEach(b => b.onclick = () => { o.ability = b.dataset.oab; bsave(); renderBattle(); oppEditor(t, idx, side); });
+    $("#oItem").onclick = () => { const legal = fmt(t).items.filter(i => !G.items[i].m || G.items[i].m[o.s]); const rows = [{key:"", group:"", search:"none", html:`<span class="li-main">Unknown / none</span>`}]; const seen = new Set();
+      if (set) set.i.forEach(([k,p]) => { if (legal.includes(k)) { seen.add(k); rows.push({key:k, group:"Most common", search:toID(G.items[k].n), html:`<span class="li-main"><b>${esc(G.items[k].n)}</b> <span class="pct">${Math.round(p)}%</span></span>`}); } });
+      legal.filter(k => !seen.has(k)).sort((a,b) => G.items[a].n.localeCompare(G.items[b].n)).forEach(k => rows.push({key:k, group:"All items", search:toID(G.items[k].n), html:`<span class="li-main"><b>${esc(G.items[k].n)}</b><br><small>${esc(G.items[k].d)}</small></span>`}));
+      listPicker("Their item", rows, k => { o.item = k; o.seen.item = !!k; bsave(); renderBattle(); oppEditor(t, idx, side); }, {noFocus:true, onClose: () => oppEditor(t, idx, side)}); };
+    document.querySelectorAll("[data-omv]").forEach(b => b.onclick = () => { const k = +b.dataset.omv, L = learnable(t, o.s), rows = [], seen = new Set(o.moves.filter((x,j) => j!==k));
+      const row = (i, group, extra="") => { if (seen.has(i)) return; seen.add(i); const x = mv(i); rows.push({key:String(i), group, search:toID(x.n)+toID(x.t), html:`<span class="badge" style="background:${COL[x.t]}">${x.t}</span><span class="li-main"><b>${esc(x.n)}</b>${extra}<br><small>${x.c==="X"?"Status":x.c==="P"?"Phys":"Spec"}${x.bp?` · ${x.bp} BP`:""}</small></span>`}); };
+      if (set) set.m.filter(x => L.includes(x[0])).forEach(([i,p]) => row(i, "Most common", ` <span class="pct">${Math.round(p)}%</span>`));
+      L.map(mv).sort((a,b) => a.n.localeCompare(b.n)).forEach(x => row(x.i, "All learnable"));
+      if (o.moves[k] !== undefined) rows.unshift({key:"-1", group:"", search:"remove", html:`<span class="li-main">— Remove this move</span>`});
+      listPicker(`Their move ${k+1}`, rows, key => { const i = +key; if (i < 0) o.moves.splice(k,1); else { if (k < o.moves.length) o.moves[k] = i; else o.moves.push(i); if (!o.seen.moves.includes(i)) o.seen.moves.push(i); } bsave(); renderBattle(); oppEditor(t, idx, side); }, {noFocus:true, onClose: () => oppEditor(t, idx, side)}); });
+    document.querySelectorAll("[data-oseen]").forEach(b => b.onclick = () => { const i = +b.dataset.oseen; o.seen.moves = o.seen.moves.includes(i) ? o.seen.moves.filter(x => x!==i) : o.seen.moves.concat(i); bsave(); renderBattle(); oppEditor(t, idx, side); });
+    const ob = $("#oBench"); if (ob) ob.onclick = () => { const s2 = battle.oppActive.indexOf(idx); battle.oppActive[s2] = null; bsave(); closeSheet(); renderBattle(); };
+    const oi = $("#oIn"); if (oi) oi.onclick = () => { const free = battle.oppActive.indexOf(null); if (free >= 0){ battle.oppActive[free] = idx; bsave(); closeSheet(); renderBattle(); } else pickSide("Replace which of their Pokémon?", battle.oppActive.map(i => S(effSpecies(battle.opp[i])).n), s2 => { battle.oppActive[s2] = idx; bsave(); renderBattle(); }); };
+    $("#oFaint").onclick = () => { o.fainted = !o.fainted; bsave(); closeSheet(); renderBattle(); };
+    $("#oRemove").onclick = () => { battle.opp.splice(idx,1); battle.oppActive = battle.oppActive.map(i => i === null ? null : i === idx ? null : i > idx ? i-1 : i); bsave(); closeSheet(); renderBattle(); };
+  });
+}
+function pickSide(title, names, cb){ sheet(`<h3>${esc(title)}</h3>${names.map((n,i) => `<button class="btn block" data-side="${i}">${esc(n)}</button>`).join("")}`, () => document.querySelectorAll("[data-side]").forEach(b => b.onclick = () => { closeSheet(); cb(+b.dataset.side); })); }
+function mySlotSheet(t, side){
+  const i = battle.myActive[side], m = i === null ? null : t.mons[i];
+  const bench = t.mons.map((x,j) => ({x,j})).filter(y => y.x && !battle.myActive.includes(y.j) && !battle.fainted.includes(y.j));
+  let h = m ? `<h3>${esc(S(effSpecies(m)).n)}</h3>` : `<h3>Send in</h3>`;
+  h += bench.length ? `<label>${m ? "Switch to" : "Choose"}</label>${bench.map(({x,j}) => `<button class="btn block left" data-swto="${j}"><img src="${sprite(effSpecies(x))}" alt="" style="width:36px;height:36px;vertical-align:middle;image-rendering:pixelated"> ${esc(S(effSpecies(x)).n)}</button>`).join("")}` : `<div class="hint">No healthy Pokémon on the bench.</div>`;
+  if (m) h += `<button class="btn block" id="myFaint">${battle.fainted.includes(i) ? "Not fainted" : "Fainted"}</button>`;
+  sheet(h, () => {
+    document.querySelectorAll("[data-swto]").forEach(b => b.onclick = () => { battle.myActive[side] = +b.dataset.swto; bsave(); closeSheet(); renderBattle(); });
+    const f = $("#myFaint"); if (f) f.onclick = () => { battle.fainted = battle.fainted.includes(i) ? battle.fainted.filter(x => x!==i) : battle.fainted.concat(i); bsave(); closeSheet(); renderBattle(); };
+  });
+}
+function myBenchSheet(t, i){
+  const m = t.mons[i], fainted = battle.fainted.includes(i);
+  sheet(`<h3>${esc(S(effSpecies(m)).n)}</h3>${fainted ? "" : battle.myActive.map((a,s) => `<button class="btn block" data-swin="${s}">Switch in for ${a === null ? "empty slot" : esc(S(effSpecies(t.mons[a])).n)}</button>`).join("")}
+    <button class="btn block" id="bFaint">${fainted ? "Not fainted" : "Fainted"}</button>`, () => {
+    document.querySelectorAll("[data-swin]").forEach(b => b.onclick = () => { battle.myActive[+b.dataset.swin] = i; bsave(); closeSheet(); renderBattle(); });
+    $("#bFaint").onclick = () => { battle.fainted = fainted ? battle.fainted.filter(x => x!==i) : battle.fainted.concat(i); bsave(); closeSheet(); renderBattle(); };
+  });
+}
+
 /* ---------- sheet + toast ---------- */
 let sheetClose = null;
 function sheet(html, init, onClose){
@@ -483,18 +722,21 @@ function closeSheet(user){ const el = $("#tbSheet"); if (el) el.hidden = true; d
 function toast(msg){ let el = $("#tbToast"); if (!el){ el = document.createElement("div"); el.id = "tbToast"; document.body.appendChild(el); } el.textContent = msg; el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove("show"), 2200); }
 
 /* ---------- boot ---------- */
+function teamVisible(){ const el = document.getElementById("teamMode"); return el && !el.hidden; }
+function battleVisible(){ const el = document.getElementById("battleMode"); return el && !el.hidden; }
 document.addEventListener("error", e => { if (e.target && e.target.tagName === "IMG") e.target.style.visibility = "hidden"; }, true);
 let loading = null;
-window.openTeams = function(){
-  load(); render();
+function boot(){
   if (!DS.main && !loading) loading = Promise.all([fetch("data/game.json").then(r=>r.json()), fetch("data/meta.json").then(r=>r.json())]).then(([g,m]) => {
-    DS.main = g; M = m; render();
-  }).catch(() => { root().innerHTML = `<div class="card">Couldn't load team data. Check your connection and reopen this tab.</div>`; loading = null; });
-};
+    DS.main = g; M = m; if (teamVisible()) render(); if (battleVisible()) renderBattle();
+  }).catch(() => { const msg = `<div class="card">Couldn't load team data. Check your connection and reopen this tab.</div>`; if (teamVisible()) root().innerHTML = msg; if (battleVisible()) broot().innerHTML = msg; loading = null; });
+}
+window.openTeams = function(){ load(); render(); boot(); };
+window.openBattle = function(){ renderBattle(); boot(); };
 // If the Teams tab is already showing when this script loads (restored on startup), draw it now
-const teamVisible = () => { const el = document.getElementById("teamMode"); return el && !el.hidden; };
 if (teamVisible()) window.openTeams();
+if (battleVisible()) window.openBattle();
 // Redraw when the app returns from the background (phones can restore an empty view)
-window.addEventListener("pageshow", e => { if (teamVisible() && (e.persisted || !root().innerHTML.trim())) window.openTeams(); });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && teamVisible() && !root().innerHTML.trim()) window.openTeams(); });
+window.addEventListener("pageshow", e => { if (teamVisible() && (e.persisted || !root().innerHTML.trim())) window.openTeams(); if (battleVisible() && (e.persisted || !broot().innerHTML.trim())) window.openBattle(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") return; if (teamVisible() && !root().innerHTML.trim()) window.openTeams(); if (battleVisible() && !broot().innerHTML.trim()) window.openBattle(); });
 })();
