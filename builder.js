@@ -528,6 +528,15 @@ function attacks(att, def){
 }
 const multTxt = x => x === 0 ? "immune" : x >= 4 ? "4×" : x >= 2 ? "2×" : x <= 0.25 ? "¼×" : x < 1 ? "½×" : "1×";
 
+function typingCard(mon, mine){
+  const es = effSpecies(mon), g = {4:[],2:[],0.5:[],0.25:[],0:[]};
+  for (const ty of TY()){ const x = hitMult(ty, mon); if (x >= 4) g[4].push(ty); else if (x >= 2) g[2].push(ty); else if (x === 0) g[0].push(ty); else if (x <= 0.25) g[0.25].push(ty); else if (x < 1) g[0.5].push(ty); }
+  const row = (lbl, cls, arr) => arr.length ? `<div class="ty-row"><span class="mult ${cls}">${lbl}</span><span>${arr.map(badge).join("")}</span></div>` : "";
+  return `<div class="ty-card ${mine?"mine":"opp"}"><div class="ty-head"><img src="${sprite(es)}" alt=""><b>${esc(S(es).n)}</b>${typeBadges(S(es).t)}</div>
+    ${row("4×","m4",g[4])}${row("2×","m2",g[2])}${(g[4].length||g[2].length)?"":`<div class="ty-row"><span class="hint">No weaknesses</span></div>`}
+    ${row("½×","mh",g[0.5])}${row("¼×","mq",g[0.25])}${row("0×","m0",g[0])}
+    ${["Levitate","Flash Fire","Water Absorb","Volt Absorb","Lightning Rod","Storm Drain","Sap Sipper","Motor Drive","Dry Skin","Earth Eater","Well-Baked Body","Thick Fat","Heatproof","Water Bubble","Purifying Salt","Wonder Guard"].includes(abilOf(mon)) ? `<div class="hint">Includes ${esc(abilOf(mon))}</div>` : ""}</div>`;
+}
 function battleAdvice(t){
   const me = battle.myActive.map(i => i === null ? null : t.mons[i]).filter(m => m && !battle.fainted.includes(t.mons.indexOf(m)));
   const opp = battle.oppActive.map(i => i === null ? null : battle.opp[i]).filter(o => o && !o.fainted);
@@ -614,6 +623,9 @@ function renderBattle(){
     <div class="bt-bench">${oppBench.map(({o,i}) => `<button class="bt-chip ${o.fainted?"fainted":""}" data-oppbench="${i}"><img src="${sprite(effSpecies(o))}" alt="">${esc(S(effSpecies(o)).n)}</button>`).join("")}<button class="bt-chip add" id="btSeen">+ Seen on their team</button></div>
     <div class="bt-label">You</div><div class="bt-row">${myCard(battle.myActive[0],0)}${myCard(battle.myActive[1],1)}</div>
     <div class="bt-bench">${myBench.map(({m,i}) => `<button class="bt-chip ${battle.fainted.includes(i)?"fainted":""}" data-mybench="${i}"><img src="${sprite(effSpecies(m))}" alt="">${esc(S(effSpecies(m)).n)}</button>`).join("")}</div>
+    ${(() => { const oa = battle.oppActive.map(i => i===null||i===undefined ? null : battle.opp[i]).filter(o => o && !o.fainted);
+      const ma = battle.myActive.map(i => i===null ? null : t.mons[i]).filter((m) => m && !battle.fainted.includes(t.mons.indexOf(m)));
+      return (oa.length || ma.length) ? `<h4>Typing</h4>${oa.length?`<div class="bt-label">Their weaknesses</div><div class="ty-grid">${oa.map(o => typingCard(o,false)).join("")}</div>`:""}${ma.length?`<div class="bt-label">Your weaknesses</div><div class="ty-grid">${ma.map(m => typingCard(m,true)).join("")}</div>`:""}` : ""; })()}
     <h4>Advice</h4><div class="bt-advice">${battleAdvice(t).map(a => `<div class="ck ${a.k==="switch"?"info":a.k}"><b>${esc(a.h)}</b><br><span>${esc(a.b)}</span>${a.sw?`<div><button class="btn small primary" data-doswitch="${a.sw.join(",")}">Switch</button></div>`:""}</div>`).join("")}</div>
     <div class="hint" style="margin-top:10px">Opponent sets are assumptions (${meta(t).usage.length ? "most common meta set" : "suggested from stats and learnset"}) — tap their Pokémon to fix moves or items as they're revealed. Advice uses typing, abilities and base stats; it ignores EVs, weather, terrain and Tera.</div>${isEra(t) ? "" : freshness()}`;
   el.innerHTML = h;

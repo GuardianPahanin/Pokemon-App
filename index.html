@@ -122,6 +122,12 @@
   .btn[disabled] { opacity:.45; }
   .fresh { margin:16px 0 4px; padding:10px 12px; border-radius:12px; font-size:13px; background:var(--card); border:1px solid var(--line); color:var(--muted); text-align:center; }
   .fresh b { color:var(--text); } .fresh.stale { border-color:#f08a3c; background:#f08a3c14; }
+  .ty-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .ty-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 8px 8px; } .ty-card.opp { border-color:#d93a3a55; } .ty-card.mine { border-color:#6890f055; }
+  .ty-head { display:flex; align-items:center; gap:3px; flex-wrap:wrap; margin-bottom:2px; } .ty-head img { width:34px; height:34px; image-rendering:pixelated; margin:-4px -2px; } .ty-head b { font-size:13px; margin-right:2px; }
+  .ty-head .badge { font-size:9px; padding:1px 5px; margin:0; }
+  .ty-row { display:flex; gap:4px; align-items:flex-start; margin-top:4px; } .ty-row .mult { font-size:10px; min-width:24px; padding:1px 3px; flex:none; }
+  .ty-row .badge { font-size:9.5px; padding:1px 5px; margin:1px 2px 1px 0; } .ty-card .hint { font-size:11px; margin-top:4px; }
   body.noscroll { overflow:hidden; }
   #tbToast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:#1c1c1e; color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; z-index:60; pointer-events:none; max-width:90vw; }
   #tbToast.show { opacity:1; transform:translateX(-50%); }
