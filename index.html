@@ -120,6 +120,8 @@
   .bt-mvrow { display:flex; gap:6px; margin-top:6px; } .bt-mvrow .btn:first-child { flex:1; }
   .tb-slot.picked { border-color:#7c6cf0; box-shadow:0 0 0 2px #7c6cf0 inset; }
   .btn[disabled] { opacity:.45; }
+  .fresh { margin:16px 0 4px; padding:10px 12px; border-radius:12px; font-size:13px; background:var(--card); border:1px solid var(--line); color:var(--muted); text-align:center; }
+  .fresh b { color:var(--text); } .fresh.stale { border-color:#f08a3c; background:#f08a3c14; }
   body.noscroll { overflow:hidden; }
   #tbToast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:#1c1c1e; color:#fff; padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; z-index:60; pointer-events:none; max-width:90vw; }
   #tbToast.show { opacity:1; transform:translateX(-50%); }

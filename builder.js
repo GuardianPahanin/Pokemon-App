@@ -243,6 +243,7 @@ function renderList(){
     h += `<button class="card tb-teamcard" data-open="${t.id}"><div class="tb-tc-top"><b>${esc(t.name)}</b><span class="fmt ${t.format}">${esc(fmtLabel(t))}</span></div>
       <div class="tb-minis">${t.mons.map(m => m ? `<img src="sprites/${m.sp || ((DS.main&&DS.main.species[m.s]||{}).sp) || 0}.png" alt="">` : `<span class="tb-empty-mini"></span>`).join("")}</div></button>`;
   }
+  h += freshness();
   h += `<div class="hint" style="margin-top:16px">Teams are saved on this device. Meta suggestions come from a Pikalytics snapshot (Showdown ladder + tournament teams, ${esc(M.champ.date)}). Older-generation teams have no meta data, so their coach uses stats, typing and doubles roles. Legal Pokémon, moves and items come from Pokémon Showdown.</div>`;
   root().innerHTML = h;
   $("#tbNew").onclick = () => sheet(`<h3>New team</h3>
@@ -298,7 +299,7 @@ function renderTeam(){
   });
   h += `</div>`;
   if (mons.some(x=>!x)) h += `<button class="btn block" id="tbAuto">✨ Auto-fill empty slots from the meta</button>`;
-  h += `<div class="tb-tabs">${[["partners","Partners"],["teams","Meta teams"],["analysis","Analysis"]].map(([k,l])=>`<button data-ct="${k}" class="${coachTab===k?"on":""}">${l}</button>`).join("")}</div><div id="tbCoach"></div>`;
+  h += `<div class="tb-tabs">${[["partners","Partners"],["teams","Meta teams"],["analysis","Analysis"]].map(([k,l])=>`<button data-ct="${k}" class="${coachTab===k?"on":""}">${l}</button>`).join("")}</div><div id="tbCoach"></div>${isEra(t) ? "" : freshness()}`;
   root().innerHTML = h;
   $("#tbBack").onclick = () => { curTeam = null; render(); };
   $("#tbName").onchange = e => { t.name = e.target.value || t.name; save(); };
@@ -470,6 +471,16 @@ function movePicker(k){
   listPicker(`Move ${k+1} for ${esc(S(m.s).n)}`, rows, key => { const i = +key; if (i<0) m.moves.splice(k,1); else { if (k < m.moves.length) m.moves[k] = i; else m.moves.push(i); } save(); render(); slotEditor(); }, {noFocus:true, onClose: () => slotEditor()});
 }
 
+/* ---------- meta freshness ---------- */
+function freshness(){
+  if (!M || !M.champ) return "";
+  const [y, mo] = M.champ.date.split("-").map(Number), now = new Date();
+  const months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - mo);
+  const label = new Date(y, mo - 1, 1).toLocaleString("en-US", {month:"long", year:"numeric"});
+  const age = months <= 0 ? "this month" : months === 1 ? "1 month ago" : `${months} months ago`;
+  const stale = months > 2;
+  return `<div class="fresh ${stale?"stale":""}">${stale?"⚠️":"🕒"} Meta data last updated: <b>${label}</b> (${age})${stale?" — ask Claude to refresh it":""}</div>`;
+}
 /* ---------- battle helper ---------- */
 const broot = () => $("#battleMode");
 const BSTORE = "battle-v1";
@@ -603,7 +614,7 @@ function renderBattle(){
     <div class="bt-label">You</div><div class="bt-row">${myCard(battle.myActive[0],0)}${myCard(battle.myActive[1],1)}</div>
     <div class="bt-bench">${myBench.map(({m,i}) => `<button class="bt-chip ${battle.fainted.includes(i)?"fainted":""}" data-mybench="${i}"><img src="${sprite(effSpecies(m))}" alt="">${esc(S(effSpecies(m)).n)}</button>`).join("")}</div>
     <h4>Advice</h4><div class="bt-advice">${battleAdvice(t).map(a => `<div class="ck ${a.k==="switch"?"info":a.k}"><b>${esc(a.h)}</b><br><span>${esc(a.b)}</span>${a.sw?`<div><button class="btn small primary" data-doswitch="${a.sw.join(",")}">Switch</button></div>`:""}</div>`).join("")}</div>
-    <div class="hint" style="margin-top:10px">Opponent sets are assumptions (${meta(t).usage.length ? "most common meta set" : "suggested from stats and learnset"}) — tap their Pokémon to fix moves or items as they're revealed. Advice uses typing, abilities and base stats; it ignores EVs, weather, terrain and Tera.</div>`;
+    <div class="hint" style="margin-top:10px">Opponent sets are assumptions (${meta(t).usage.length ? "most common meta set" : "suggested from stats and learnset"}) — tap their Pokémon to fix moves or items as they're revealed. Advice uses typing, abilities and base stats; it ignores EVs, weather, terrain and Tera.</div>${isEra(t) ? "" : freshness()}`;
   el.innerHTML = h;
   $("#btNew").onclick = () => { battle = null; bsave(); renderBattle(); };
   $("#btRematch").onclick = () => { battle = {teamId:t.id, started:false, myActive:[null,null], fainted:[], opp:[], oppActive:[null,null]}; bsave(); renderBattle(); };
